@@ -7,8 +7,9 @@ from database_main import db
 def init_callbacks(bot: Client):
 
     # Commands Button
-    @bot.on_callback_query(filters.callback_query("show_commands"))
+    @bot.on_callback_query(filters.regex("^show_commands$"))
     async def show_commands(_, query: CallbackQuery):
+
         text = (
             "🎮 **GameBot Commands**\n\n"
             "**General Commands**\n"
@@ -16,6 +17,7 @@ def init_callbacks(bot: Client):
             "/help - Show help menu\n"
             "/profile - Your stats\n"
             "/leaderboard - Top players\n\n"
+
             "**Game Commands**\n"
             "/flip - Coin flip game\n"
             "/roll - Random dice roll\n"
@@ -29,8 +31,9 @@ def init_callbacks(bot: Client):
         await query.message.edit(text)
         await query.answer()
 
+
     # Profile Button
-    @bot.on_callback_query(filters.callback_query("show_profile"))
+    @bot.on_callback_query(filters.regex("^show_profile$"))
     async def show_profile(_, query: CallbackQuery):
 
         user = db.get_user(query.from_user.id)
