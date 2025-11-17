@@ -45,6 +45,7 @@ optional_modules = [
     "work",
     "shop",
     "guess",
+    "help",   # add this
 ]
 
 if __name__ == "__main__":
