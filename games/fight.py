@@ -2,7 +2,7 @@
 
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from database_main import db
+from database.mongo import get_user, update_user
 from utils.cooldown import check_cooldown, update_cooldown
 import random, asyncio
 
@@ -24,8 +24,9 @@ def init_fight(bot: Client):
         if attacker.id == defender.id:
             return await msg.reply("You cannot fight yourself!")
 
-        a_data = db.get_user(attacker.id)
-        d_data = db.get_user(defender.id)
+        # Load attacker & defender from MongoDB
+        a_data = get_user(attacker.id)
+        d_data = get_user(defender.id)
 
         # Cooldown
         ok, wait, pretty = check_cooldown(a_data, "fight", 60)
@@ -60,16 +61,20 @@ def init_fight(bot: Client):
             steal = min(steal, d_bronze)  # cannot steal more than available
 
             # Update Bronze
-            a_data["bronze"] = a_bronze + steal
-            d_data["bronze"] = max(0, d_bronze - steal)
+            new_a_bronze = a_bronze + steal
+            new_d_bronze = max(0, d_bronze - steal)
 
             # Win counter
-            a_data["fight_wins"] = a_data.get("fight_wins", 0) + 1
+            a_wins = a_data.get("fight_wins", 0) + 1
 
             result = (
                 f"🏆 **You Won the Fight!**\n"
                 f"🥉 You stole **{steal} Bronze** from **{defender.first_name}**!"
             )
+
+            # Write to MongoDB
+            update_user(attacker.id, {"bronze": new_a_bronze, "fight_wins": a_wins})
+            update_user(defender.id, {"bronze": new_d_bronze})
 
         # Defender wins
         else:
@@ -77,11 +82,11 @@ def init_fight(bot: Client):
             penalty = min(penalty, a_bronze)
 
             # Update Bronze
-            a_data["bronze"] = max(0, a_bronze - penalty)
-            d_data["bronze"] = d_bronze + penalty
+            new_a_bronze = max(0, a_bronze - penalty)
+            new_d_bronze = d_bronze + penalty
 
-            # Win counter for defender
-            d_data["fight_wins"] = d_data.get("fight_wins", 0) + 1
+            # Defender win counter
+            d_wins = d_data.get("fight_wins", 0) + 1
 
             result = (
                 f"😢 **You Lost the Fight!**\n"
@@ -89,9 +94,12 @@ def init_fight(bot: Client):
                 f"🏆 **{defender.first_name}** gained **{penalty} Bronze**!"
             )
 
-        # Apply cooldown & save
-        a_data = update_cooldown(a_data, "fight")
-        db.update_user(attacker.id, a_data)
-        db.update_user(defender.id, d_data)
+            # Write to MongoDB
+            update_user(attacker.id, {"bronze": new_a_bronze})
+            update_user(defender.id, {"bronze": new_d_bronze, "fight_wins": d_wins})
+
+        # Apply cooldown for attacker
+        new_cooldowns = update_cooldown(a_data, "fight")
+        update_user(attacker.id, {"cooldowns": new_cooldowns})
 
         await fight_msg.edit(result)
