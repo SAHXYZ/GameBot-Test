@@ -1,27 +1,60 @@
 from pymongo import MongoClient
-from config import MONGO_URI, DB_NAME
+import os
 
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
+MONGO_URI = os.getenv("MONGO_URI")
+
+# ---- FIX: Allow TLS on Heroku ----
+client = MongoClient(
+    MONGO_URI,
+    tls=True,
+    tlsAllowInvalidCertificates=True
+)
+
+db = client["GameBot"]
 users = db["users"]
 
-def get_user(uid):
-    uid = str(uid)
-    user = users.find_one({"_id": uid})
+
+# ----------------------------------
+# Fetch or Create User
+# ----------------------------------
+def get_user(user_id):
+    user_id = str(user_id)
+    user = users.find_one({"_id": user_id})
+
+    # If user does not exist, create full schema
     if not user:
         user = {
-            "_id": uid,
+            "_id": user_id,
+
+            # --- COINS ---
             "black_gold": 0,
             "platinum": 0,
             "gold": 0,
             "silver": 0,
             "bronze": 0,
+
+            # --- STATS ---
             "messages": 0,
-            "badges": [],
-            "inventory": []
+            "fight_wins": 0,
+            "rob_success": 0,
+            "rob_fail": 0,
+
+            # --- OTHER ---
+            "cooldowns": {},
+            "inventory": [],
+            "badges": []
         }
         users.insert_one(user)
+
     return user
 
-def update_user(uid, data: dict):
-    users.update_one({"_id": str(uid)}, {"$set": data})
+
+# ----------------------------------
+# Update user
+# ----------------------------------
+def update_user(user_id, data: dict):
+    users.update_one(
+        {"_id": str(user_id)},
+        {"$set": data},
+        upsert=True
+    )
