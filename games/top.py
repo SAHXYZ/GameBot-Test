@@ -1,16 +1,8 @@
-# filename: games/top.py
-
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-
-# ✅ MongoDB
-from database.mongo import users     # direct access to the collection
+from database.mongo import users
 from utils.coins import total_bronze_value
 
-
-# ------------------------------
-# Leaderboard Buttons
-# ------------------------------
 def leaderboard_menu():
     return InlineKeyboardMarkup(
         [
@@ -26,39 +18,25 @@ def back_button():
         [[InlineKeyboardButton("⬅️ Back", callback_data="lb_back")]]
     )
 
-
-# ------------------------------
-# INIT FUNCTION
-# ------------------------------
 def init_top(bot: Client):
 
     @bot.on_message(filters.command("leaderboard"))
     async def show_menu(_, msg: Message):
         await msg.reply("📊 **Choose a leaderboard:**", reply_markup=leaderboard_menu())
 
-    # ------------------------------
-    # TOP COINS — MongoDB sort
-    # ------------------------------
     @bot.on_callback_query(filters.regex("^top_coins$"))
     async def top_coins(client, cq: CallbackQuery):
 
-        # Fetch ALL users
         all_users = list(users.find({}))
-
-        # Calculate total bronze value for each
         ranked = []
         for u in all_users:
             total = total_bronze_value(u)
             ranked.append((u["_id"], total, u))
 
-        # Sort descending & limit 10
         ranked = sorted(ranked, key=lambda x: x[1], reverse=True)[:10]
-
         text = "🏆 **Top Wealth Leaderboard**\n\n"
-
         rank = 1
         for uid, total, data in ranked:
-
             try:
                 tg_user = await client.get_users(int(uid))
                 name = tg_user.first_name
@@ -74,33 +52,26 @@ def init_top(bot: Client):
                 f"| 🥉 {data.get('bronze', 0)}\n"
                 f"💰 **Total Value:** `{total}`\n\n"
             )
-
             rank += 1
 
         await cq.message.edit(text, reply_markup=back_button())
         await cq.answer()
 
-    # ------------------------------
-    # TOP MESSAGES — MongoDB sort
-    # ------------------------------
     @bot.on_callback_query(filters.regex("^top_msgs$"))
     async def top_msgs(client, cq: CallbackQuery):
 
-        # Fetch all users sorted by messages
         pipeline = [
-            {"$project": {"messages": 1}}, 
+            {"$project": {"messages": 1}},
             {"$sort": {"messages": -1}},
             {"$limit": 10}
         ]
         top_list = list(users.aggregate(pipeline))
 
         text = "💬 **Top Message Senders**\n\n"
-
         rank = 1
         for entry in top_list:
             uid = entry["_id"]
             msgs = entry.get("messages", 0)
-
             try:
                 tg_user = await client.get_users(int(uid))
                 name = tg_user.first_name
@@ -113,9 +84,6 @@ def init_top(bot: Client):
         await cq.message.edit(text, reply_markup=back_button())
         await cq.answer()
 
-    # ------------------------------
-    # BACK BUTTON
-    # ------------------------------
     @bot.on_callback_query(filters.regex("^lb_back$"))
     async def leaderboard_back(_, cq: CallbackQuery):
         await cq.message.edit("📊 **Choose a leaderboard:**", reply_markup=leaderboard_menu())
