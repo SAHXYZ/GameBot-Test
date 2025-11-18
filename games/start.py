@@ -3,7 +3,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
-# MongoDB
+# ✅ USE MONGO
 from database.mongo import get_user, update_user
 
 START_TEXT = (
@@ -31,22 +31,16 @@ def get_start_menu():
         ]
     )
 
-
 def init_start(bot: Client):
 
     @bot.on_message(filters.command("start"))
     async def start_handler(_, msg: Message):
 
-        if not msg.from_user:
-            return
+        name = msg.from_user.first_name if msg.from_user else "Player"
 
-        user_id = msg.from_user.id
-        user = get_user(user_id)
+        # 🔥 IMPORTANT: create user in DB here
+        get_user(msg.from_user.id)
 
-        # If user is NEW — ensure they exist in the database
-        update_user(user_id, {})  # will not override existing values
-
-        name = msg.from_user.first_name
         await msg.reply(
             START_TEXT.format(name=name),
             reply_markup=get_start_menu()
