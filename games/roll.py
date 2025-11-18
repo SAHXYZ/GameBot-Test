@@ -17,16 +17,24 @@ def init_roll(bot: Client):
 
         user = db.get_user(msg.from_user.id)
 
-        # Random dice roll
-        value = random.randint(1, 6)
-        reward = value * 10
+        # Send animated dice
+        anim = await msg.reply("🎲 Rolling...")
+        dice_msg = await msg.reply_dice()  # Telegram animation
 
-        user["coins"] += reward
+        # Wait until animation finishes
+        await asyncio.sleep(3)
+
+        # Value from dice
+        value = dice_msg.dice.value
+        reward = value * 10  # Bronze reward
+
+        # Update bronze only
+        user["bronze"] = user.get("bronze", 0) + reward
         db.update_user(msg.from_user.id, user)
 
-        await msg.reply(
+        await anim.edit(
             f"🎲 **You rolled:** `{value}`\n"
-            f"💰 **Reward:** {reward} coins"
+            f"🥉 **Reward:** `{reward} Bronze`"
         )
 
     # Detect Telegram dice message (when user taps 🎲 button)
@@ -37,13 +45,13 @@ def init_roll(bot: Client):
             return
 
         user = db.get_user(msg.from_user.id)
-        value = msg.dice.value  # Telegram gives actual dice value
+        value = msg.dice.value
         reward = value * 10
 
-        user["coins"] += reward
+        user["bronze"] = user.get("bronze", 0) + reward
         db.update_user(msg.from_user.id, user)
 
         await msg.reply(
             f"🎲 Dice rolled: `{value}`\n"
-            f"💰 Reward: **{reward} coins**"
+            f"🥉 Reward: `{reward} Bronze`"
         )
