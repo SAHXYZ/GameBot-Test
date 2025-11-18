@@ -15,18 +15,13 @@ def init_flip(bot: Client):
         if not msg.from_user:
             return
 
-
-        if not msg.from_user:
-
-
-            return
-
-
         user = db.get_user(msg.from_user.id)
-        ok, wait, pretty = check_cooldown(user, "flip", 30)
+
+        ok, wait, pretty = check_cooldown(user, "flip", 300)
         if not ok:
             return await msg.reply(f"⏳ You must wait **{pretty}** before flipping again!")
 
+        # Buttons for choosing side
         buttons = InlineKeyboardMarkup(
             [
                 [
@@ -38,6 +33,7 @@ def init_flip(bot: Client):
 
         await msg.reply("🎮 **Choose your side:**", reply_markup=buttons)
 
+    # Callback for flip
     @bot.on_callback_query(filters.regex(r"flip_"))
     async def flip_result(_, cq: CallbackQuery):
         choice = cq.data.replace("flip_", "")  # heads / tails
@@ -47,35 +43,42 @@ def init_flip(bot: Client):
         if not ok:
             return await cq.answer(f"⏳ Wait {pretty}!", show_alert=True)
 
-        # Coin animation (Telegram renders 🪙 as a spinning animation)
-        anim_msg = await cq.message.reply("🪙")
+        await cq.answer()
 
-        await cq.answer()  # closes the loading circle
+        # Cool animation
+        anim_msg = await cq.message.reply("🪙 Flipping coin...")
         await asyncio.sleep(1.2)
 
+        # True 50/50 probability
         actual = random.choice(["heads", "tails"])
 
-        # Result
-        coins = user.get("coins", 0)
+        # Bronze reward system (random 1–100 for win)
+        reward = random.randint(1, 100)
 
+        # For losing, remove only bronze and not below 0
+        penalty = random.randint(1, 40)  # Losing penalty balanced
+
+        bronze = user.get("bronze", 0)
+
+        # Outcome
         if choice == actual:
-            reward = 50
-            user["coins"] = coins + reward
-            text = (
+            user["bronze"] = bronze + reward
+            outcome_text = (
                 f"🎉 **You Won!**\n"
-                f"🪙 It was **{actual.upper()}**\n"
-                f"➕ +{reward} coins"
+                f"🪙 Coin was **{actual.upper()}**\n"
+                f"🥉 You earned **+{reward} Bronze**!"
             )
         else:
-            penalty = 25
-            user["coins"] = max(0, coins - penalty)
-            text = (
+            user["bronze"] = max(0, bronze - penalty)
+            outcome_text = (
                 f"😢 **You Lost!**\n"
-                f"🪙 It was **{actual.upper()}**\n"
-                f"➖ -{penalty} coins"
+                f"🪙 Coin was **{actual.upper()}**\n"
+                f"🥉 You lost **-{penalty} Bronze**."
             )
 
+        # Update cooldown + save DB
         user = update_cooldown(user, "flip")
         db.update_user(cq.from_user.id, user)
 
-        await anim_msg.edit(text)
+        # Edit animation to outcome
+        await anim_msg.edit(outcome_text)
