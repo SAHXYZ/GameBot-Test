@@ -1,20 +1,10 @@
-# filename: games/profile.py
-
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-
-# ✅ Use MongoDB
 from database.mongo import get_user
 
 from utils.coins import total_bronze_value, breakdown_from_bronze
 
-
 def build_profile_text_for_user(user: dict, mention: str):
-    """
-    Build the profile text string from a user dict.
-    Displays Black Gold, Platinum, Gold, Silver, Bronze separately.
-    """
-
     black_gold = int(user.get("black_gold", 0) or 0)
     platinum   = int(user.get("platinum", 0) or 0)
     gold       = int(user.get("gold", 0) or 0)
@@ -41,9 +31,7 @@ def build_profile_text_for_user(user: dict, mention: str):
         f"🎖 **Badges:** {badge_text}\n"
         f"🛒 **Inventory:** {inv_text}"
     )
-
     return text
-
 
 def get_profile_markup():
     return InlineKeyboardMarkup(
@@ -51,7 +39,6 @@ def get_profile_markup():
             [InlineKeyboardButton("⬅️ Back", callback_data="back_to_home")]
         ]
     )
-
 
 def init_profile(bot: Client):
 
@@ -61,8 +48,6 @@ def init_profile(bot: Client):
         if not msg.from_user:
             return
 
-        # Load user from MongoDB
         user = get_user(msg.from_user.id)
-
         text = build_profile_text_for_user(user, msg.from_user.mention)
         await msg.reply(text, reply_markup=get_profile_markup())
