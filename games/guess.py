@@ -1,17 +1,10 @@
-# filename: games/guess.py
-
 from pyrogram import Client, filters
 from pyrogram.types import Message
-
-# ✅ Use MongoDB
 from database.mongo import get_user, update_user
-
 import random
 
-# Active games (in-memory)
 active_games = {}
 
-# Dictionary of hints
 HINTS = {
     "apple": "A popular fruit that keeps doctors away.",
     "grape": "A small juicy fruit often used to make wine.",
@@ -215,9 +208,6 @@ WORD_LIST = list(HINTS.keys())
 
 def init_guess(bot: Client):
 
-    # -------------------------
-    # START GAME
-    # -------------------------
     @bot.on_message(filters.command("guess"))
     async def start_guess(_, msg: Message):
         if not msg.from_user:
@@ -228,7 +218,6 @@ def init_guess(bot: Client):
         if user_id in active_games:
             return await msg.reply("You already have an active game.\nUse /stop to end it.")
 
-        # Pick random word
         word = random.choice(WORD_LIST)
         hint = HINTS[word]
 
@@ -244,12 +233,8 @@ def init_guess(bot: Client):
             f"Type **/answer** to enter guessing mode."
         )
 
-    # -------------------------
-    # ENABLE ANSWER MODE
-    # -------------------------
     @bot.on_message(filters.command("answer"))
     async def enable_answer_mode(_, msg: Message):
-
         user_id = str(msg.from_user.id)
 
         if user_id not in active_games:
@@ -263,18 +248,13 @@ def init_guess(bot: Client):
             "Use /stop to end the game."
         )
 
-    # -------------------------
-    # PROCESS GUESSES
-    # -------------------------
     @bot.on_message(filters.text & ~filters.command(["guess", "answer", "stop"]))
     async def check_guess(_, msg: Message):
-
         user_id = str(msg.from_user.id)
 
         if user_id not in active_games:
             return
 
-        # Must be in answer mode
         if not active_games[user_id]["answer_mode"]:
             return
 
@@ -282,15 +262,10 @@ def init_guess(bot: Client):
         correct = active_games[user_id]["word"]
 
         if guess == correct:
-
-            # Reward user in BRONZE (MongoDB)
             user = get_user(msg.from_user.id)
             reward = random.randint(20, 120)
-
             new_bronze = user.get("bronze", 0) + reward
-
             update_user(msg.from_user.id, {"bronze": new_bronze})
-
             del active_games[user_id]
 
             return await msg.reply(
@@ -300,12 +275,8 @@ def init_guess(bot: Client):
 
         await msg.reply("❌ Wrong guess. Try again!")
 
-    # -------------------------
-    # STOP GAME
-    # -------------------------
     @bot.on_message(filters.command("stop"))
     async def stop_guess(_, msg: Message):
-
         user_id = str(msg.from_user.id)
 
         if user_id in active_games:
