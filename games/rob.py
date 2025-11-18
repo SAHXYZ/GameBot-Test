@@ -1,7 +1,11 @@
 # filename: games/rob.py
+
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from database_main import db
+
+# ✅ Use MongoDB
+from database.mongo import get_user, update_user
+
 from utils.cooldown import check_cooldown, update_cooldown
 import random, asyncio
 
@@ -10,10 +14,11 @@ def init_rob(bot: Client):
 
     @bot.on_message(filters.command("rob"))
     async def rob_game(_, msg: Message):
+
         if not msg.from_user:
             return
 
-        # Must reply to a user to rob
+        # Must reply to someone to rob
         if not msg.reply_to_message or not msg.reply_to_message.from_user:
             return await msg.reply("Reply to a user to rob them!")
 
@@ -23,8 +28,9 @@ def init_rob(bot: Client):
         if robber.id == victim.id:
             return await msg.reply("You cannot rob yourself.")
 
-        robber_data = db.get_user(robber.id)
-        victim_data = db.get_user(victim.id)
+        # Load users from MongoDB
+        robber_data = get_user(robber.id)
+        victim_data = get_user(victim.id)
 
         ok, wait, pretty = check_cooldown(robber_data, "rob", 300)
         if not ok:
@@ -34,53 +40,51 @@ def init_rob(bot: Client):
         await asyncio.sleep(1)
 
         # ---------------------------
-        # STEP 1: Decide which coin tier to attempt
+        # STEP 1: Choose a coin tier based on availability & weight
         # ---------------------------
 
-        # AND REMOVE TIERS IF VICTIM HAS 0 IN THAT TIER
         chances = []
 
-        # Bronze = 100% (ALWAYS allowed)
         if victim_data.get("bronze", 0) > 0:
             chances.append(("bronze", 100))
 
-        # Silver = 80% chance
         if victim_data.get("silver", 0) > 0:
             chances.append(("silver", 80))
 
-        # Gold = 50% chance
         if victim_data.get("gold", 0) > 0:
             chances.append(("gold", 50))
 
-        # Platinum = 1% chance
         if victim_data.get("platinum", 0) > 0:
             chances.append(("platinum", 1))
 
-        # If no coin tiers available
+        # If target has no coins at all
         if not chances:
-            robber_data = update_cooldown(robber_data, "rob")
-            db.update_user(robber.id, robber_data)
+            new_cd = update_cooldown(robber_data, "rob")
+            update_user(robber.id, {"cooldowns": new_cd})
             return await rob_msg.edit("😶 Target has **no coins** to steal.")
 
-        # Weighted tier selection
-        # Example: [("gold", 50), ("silver", 80), ("bronze", 100)]
         tier_choices = [tier for tier, weight in chances]
         tier_weights = [weight for tier, weight in chances]
 
         chosen_tier = random.choices(tier_choices, weights=tier_weights, k=1)[0]
 
         # ---------------------------
-        # STEP 2: Decide outcome (success/fail)
+        # STEP 2: Success or Fail
         # ---------------------------
 
-        # Success chance = weight% (example: silver = 80% chance)
-        if random.randint(1, 100) > [w for t, w in chances if t == chosen_tier][0]:
+        success_chance = [w for t, w in chances if t == chosen_tier][0]
+
+        if random.randint(1, 100) > success_chance:
             # FAILED ROBBERY
             penalty = random.randint(1, 30)
-            robber_data["bronze"] = max(0, robber_data.get("bronze", 0) - penalty)
-            robber_data = update_cooldown(robber_data, "rob")
 
-            db.update_user(robber.id, robber_data)
+            new_bronze = max(0, robber_data.get("bronze", 0) - penalty)
+            new_cd = update_cooldown(robber_data, "rob")
+
+            update_user(robber.id, {
+                "bronze": new_bronze,
+                "cooldowns": new_cd
+            })
 
             return await rob_msg.edit(
                 f"🚨 **Robbery Failed!**\n"
@@ -98,22 +102,28 @@ def init_rob(bot: Client):
         elif chosen_tier == "gold":
             amount = random.randint(1, min(5, victim_data.get("gold", 0)))
         elif chosen_tier == "platinum":
-            amount = 1  # platinum is rare
+            amount = 1  # super rare, fixed
 
         # Deduct from victim
-        victim_data[chosen_tier] = max(0, victim_data.get(chosen_tier, 0) - amount)
+        new_victim_amount = max(0, victim_data.get(chosen_tier, 0) - amount)
 
         # Add to robber
-        robber_data[chosen_tier] = robber_data.get(chosen_tier, 0) + amount
+        new_robber_amount = robber_data.get(chosen_tier, 0) + amount
 
-        # Update cooldown
-        robber_data = update_cooldown(robber_data, "rob")
+        # Update cooldown for robber
+        new_cd = update_cooldown(robber_data, "rob")
 
-        # Save both
-        db.update_user(robber.id, robber_data)
-        db.update_user(victim.id, victim_data)
+        # Save to MongoDB (BOTH users)
+        update_user(robber.id, {
+            chosen_tier: new_robber_amount,
+            "cooldowns": new_cd
+        })
 
-        # Tier icons
+        update_user(victim.id, {
+            chosen_tier: new_victim_amount
+        })
+
+        # Emoji map
         tier_emoji = {
             "bronze": "🥉",
             "silver": "🥈",
