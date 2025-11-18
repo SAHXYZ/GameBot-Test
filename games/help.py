@@ -1,5 +1,3 @@
-# filename: games/help.py
-
 from pyrogram import Client, filters
 
 def init_help(bot: Client):
