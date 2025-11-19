@@ -99,8 +99,7 @@ def init_guess(bot: Client):
             f"🔎 **Hint:** {pretty_hint(hint, len(word))}\n\n"
             "📌 Use `/answer` to start answering.\n"
             "▶ Use `/new` to get a new word.\n"
-            "🛑 Use `/stop` to end the quiz.",
-            parse_mode="markdown"
+            "🛑 Use `/stop` to end the quiz."
         )
         await cq.answer()
 
