@@ -1,9 +1,11 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from database.mongo import get_user, update_user
 import random
+from database.mongo import get_user, update_user
 
-active_games = {}
+# -----------------------------------------
+# WORDS + HINTS
+# -----------------------------------------
 
 HINTS = {
     "apple": "A popular fruit that keeps doctors away.",
@@ -59,7 +61,7 @@ HINTS = {
     "fancy": "To imagine or desire something.",
     "forest": "A large area covered with trees.",
     "desert": "A dry area with very little rain.",
-    "island": "Land completely surrounded by water.",
+    "island": "Land surrounded by water.",
     "jungle": "A dense, tropical forest.",
     "stormy": "Full of heavy wind and rain.",
     "sunset": "Time when the sun goes down.",
@@ -73,7 +75,7 @@ HINTS = {
     "bottle": "A container typically used for liquids.",
     "bucket": "A round open container with a handle.",
     "basket": "A container woven out of flexible materials.",
-    "orange": "A citrus fruit known for its vitamin C.",
+    "orange": "A citrus fruit known for vitamin C.",
     "banana": "A yellow curved fruit rich in potassium.",
     "mango": "A sweet tropical fruit known as king of fruits.",
     "papaya": "A tropical fruit with orange flesh.",
@@ -84,7 +86,7 @@ HINTS = {
     "pencil": "A writing tool made of graphite.",
     "marker": "A pen with thick colored ink.",
     "paper": "Thin material used for writing or printing.",
-    "notebook": "A small book of blank pages for writing.",
+    "notebook": "A book of blank pages for writing.",
     "school": "A place where students learn.",
     "teacher": "A person who educates others.",
     "student": "A person who studies or learns.",
@@ -104,7 +106,7 @@ HINTS = {
     "ladder": "A tool used to reach high places.",
     "bridge": "A structure allowing passage over obstacles.",
     "harbor": "A safe place for ships to anchor.",
-    "castle": "A large fortified building from ancient times.",
+    "castle": "A large fortified ancient building.",
     "armor": "Protective covering worn in battle.",
     "shield": "A defensive item used to block attacks.",
     "sword": "A long-bladed weapon used for fighting.",
@@ -115,21 +117,21 @@ HINTS = {
     "driver": "A person who operates a vehicle.",
     "sailor": "One who works on a boat or ship.",
     "captain": "A leader of a ship or team.",
-    "leader": "Someone who guides or commands others.",
+    "leader": "Someone who guides others.",
     "king": "A male ruler of a kingdom.",
     "queen": "A female ruler of a kingdom.",
     "prince": "A male royal family member.",
     "princess": "A female royal family member.",
     "monkey": "A playful animal that climbs trees.",
     "tiger": "A large striped wild cat.",
-    "lion": "A powerful big cat known as the king of the jungle.",
+    "lion": "A powerful big cat known as king of the jungle.",
     "horse": "An animal often used for riding.",
     "rabbit": "A small animal with long ears.",
     "mouse": "A tiny rodent attracted to food.",
     "eagle": "A bird known for sharp eyesight.",
-    "parrot": "A bird that can mimic human speech.",
+    "parrot": "A bird that can mimic speech.",
     "pigeon": "A common city bird.",
-    "spider": "An insect-like creature with eight legs.",
+    "spider": "A creature with eight legs.",
     "snake": "A legless reptile that slithers.",
     "shark": "A large predatory fish.",
     "dolphin": "A smart, playful marine animal.",
@@ -140,147 +142,162 @@ HINTS = {
     "goat": "A farm animal known for climbing.",
     "crow": "A black bird known for intelligence.",
     "elevator": "A machine used to move people between floors.",
-    "stairs": "A set of steps used for climbing up and down.",
-    "escalator": "Moving stairs found in malls and stations.",
+    "stairs": "Steps used for climbing.",
+    "escalator": "Moving stairs.",
     "kitchen": "A room where food is prepared.",
     "bedroom": "A room where people sleep.",
     "bathroom": "A room with toilet and shower.",
-    "garden": "An outdoor area where plants grow.",
+    "garden": "An outdoor area with plants.",
     "garage": "A place to park vehicles.",
-    "factory": "A building where products are manufactured.",
-    "library": "A place full of books for reading.",
+    "factory": "A building where products are made.",
+    "library": "A place full of books.",
     "station": "A place where trains or buses stop.",
-    "airport": "A place where airplanes take off and land.",
-    "stadium": "A venue for sports and events.",
-    "theater": "A place for watching movies or performances.",
+    "airport": "A place where airplanes take off.",
+    "stadium": "A venue for sports.",
+    "theater": "A place to watch movies or plays.",
     "cookie": "A small sweet baked treat.",
-    "butter": "A dairy product used for cooking and spreading.",
-    "cheese": "A dairy food made from milk curds.",
-    "honey": "A sweet sticky substance made by bees.",
-    "sugar": "A sweet substance used in food and drinks.",
-    "salt": "A mineral used to season food.",
-    "pepper": "A spice used to flavor dishes.",
-    "chicken": "A common type of poultry meat.",
-    "pizza": "A dish made with dough, sauce, cheese, and toppings.",
-    "burger": "A sandwich with a patty between buns.",
-    "noodle": "Long, thin pieces of dough eaten with sauces.",
-    "pasta": "Italian noodles made from wheat flour.",
-    "salad": "A dish of mixed vegetables.",
-    "soup": "A liquid dish often served warm.",
-    "steak": "A thick cut of beef.",
-    "bacon": "Salt-cured meat usually served crispy.",
-    "coffee": "A hot drink made from roasted beans.",
-    "tea": "A beverage made by steeping leaves in hot water.",
-    "juice": "Liquid extracted from fruits.",
-    "milk": "A white liquid produced by mammals.",
-    "chocolate": "A sweet made from cocoa beans.",
-    "cereal": "Grains eaten for breakfast.",
-    "avocado": "A creamy fruit used for guacamole.",
-    "carrot": "An orange root vegetable.",
-    "tomato": "A red fruit often used in salads.",
-    "potato": "A starchy vegetable used in many dishes.",
-    "onion": "A vegetable known for its strong smell.",
-    "peppermint": "A cool-flavored herb used in candies.",
-    "ginger": "A spicy root used in cooking and tea.",
-    "garlic": "A strong-smelling bulb used in cooking.",
-    "cucumber": "A long green vegetable with high water content.",
-    "pumpkin": "A large orange vegetable used in pies.",
-    "coconut": "A tropical fruit with hard shell and white flesh.",
-    "dragon": "A mythical creature that breathes fire.",
-    "wizard": "Someone who uses magic spells.",
-    "witch": "A person believed to use magical powers.",
-    "ghost": "A spirit of a dead person.",
-    "zombie": "A reanimated corpse from horror stories.",
-    "robot": "A machine capable of performing tasks.",
-    "alien": "A creature from another planet.",
-    "giant": "A creature much larger than humans.",
-    "knight": "A medieval warrior with armor.",
-    "archer": "A person skilled in using a bow and arrow.",
-    "villain": "The antagonist or bad character in a story.",
-    "hero": "The main character who saves the day.",
-    "portal": "A doorway to another world.",
-    "crystal": "A transparent mineral with geometric shapes.",
-    "treasure": "A collection of valuable items."
+    "butter": "A dairy product used for cooking.",
+    "cheese": "A dairy food from milk curds.",
+    "honey": "A sweet substance made by bees.",
+    "sugar": "A sweet substance.",
+    "salt": "Seasoning mineral.",
+    "pepper": "A spice.",
+    "chicken": "A type of poultry meat.",
+    "pizza": "Dough with sauce and cheese.",
+    "burger": "Patty between buns.",
+    "noodle": "Thin long dough pieces.",
+    "pasta": "Italian noodles.",
+    "salad": "Mixed vegetables.",
+    "soup": "Liquid dish.",
+    "steak": "Thick cut of beef.",
+    "bacon": "Salt-cured meat.",
+    "coffee": "Hot drink from beans.",
+    "tea": "Beverage from steeped leaves.",
+    "juice": "Liquid from fruits.",
+    "milk": "White liquid from mammals.",
+    "chocolate": "Sweet from cocoa.",
+    "cereal": "Grains for breakfast.",
+    "avocado": "Creamy green fruit.",
+    "carrot": "Orange root vegetable.",
+    "tomato": "Red fruit used in salads.",
+    "potato": "Starchy vegetable.",
+    "onion": "Strong-smelling vegetable.",
+    "peppermint": "Cool herb.",
+    "ginger": "Spicy root.",
+    "garlic": "Strong-smelling bulb.",
+    "cucumber": "Long green vegetable.",
+    "pumpkin": "Large orange vegetable.",
+    "coconut": "Hard-shelled tropical fruit.",
+    "dragon": "Mythical fire-breathing creature.",
+    "wizard": "Magic user.",
+    "witch": "Person with magical powers.",
+    "ghost": "Spirit of a dead person.",
+    "zombie": "Reanimated corpse.",
+    "robot": "Mechanical machine.",
+    "alien": "Creature from another planet.",
+    "giant": "Very large human-like creature.",
+    "knight": "Armored medieval fighter.",
+    "archer": "Bow-and-arrow expert.",
+    "villain": "Story's bad character.",
+    "hero": "Main character who saves the day.",
+    "portal": "Door to another world.",
+    "crystal": "Transparent mineral.",
+    "treasure": "Valuable items."
 }
 
 WORD_LIST = list(HINTS.keys())
 
+# -----------------------------------------
+# GLOBAL QUIZ STORAGE
+# -----------------------------------------
+current_quiz = {
+    "word": None,
+    "hint": None,
+    "answer_mode": False
+}
 
+# -----------------------------------------
+# INIT FUNCTION
+# -----------------------------------------
 def init_guess(bot: Client):
 
     @bot.on_message(filters.command("guess"))
-    async def start_guess(_, msg: Message):
-        if not msg.from_user:
-            return
-
-        user_id = str(msg.from_user.id)
-
-        if user_id in active_games:
-            return await msg.reply("You already have an active game.\nUse /stop to end it.")
+    async def start_quiz(_, msg: Message):
+        if current_quiz["word"] is not None:
+            return await msg.reply(
+                "⚠️ **A quiz is already running in this chat!**\n\n"
+                "Use **/answer** to participate.\n"
+                "Or use **/stop** to end the current quiz before starting a new one. 🛑"
+            )
 
         word = random.choice(WORD_LIST)
         hint = HINTS[word]
 
-        active_games[user_id] = {
-            "word": word,
-            "hint": hint,
-            "answer_mode": False,
-        }
+        current_quiz["word"] = word
+        current_quiz["hint"] = hint
+        current_quiz["answer_mode"] = False
 
         await msg.reply(
-            f"🧩 **Guess The Word!**\n\n"
+            f"🧩 **New Guess Quiz Started!**\n\n"
             f"🔎 **Hint:** {hint}\n\n"
-            f"Type **/answer** to enter guessing mode."
+            f"Use **/answer** to start guessing!"
         )
 
     @bot.on_message(filters.command("answer"))
-    async def enable_answer_mode(_, msg: Message):
-        user_id = str(msg.from_user.id)
+    async def enable_answer(_, msg: Message):
+        if current_quiz["word"] is None:
+            return await msg.reply("❌ No quiz running.\nUse **/guess** to start one.")
 
-        if user_id not in active_games:
-            return await msg.reply("No active game.\nUse /guess to start.")
-
-        active_games[user_id]["answer_mode"] = True
+        current_quiz["answer_mode"] = True
 
         await msg.reply(
-            "📝 **Answer mode ON!**\n"
-            "Send your guesses normally.\n"
-            "Use /stop to end the game."
+            "📝 **Answer Mode Enabled!**\n"
+            "Send your guesses now!\n"
+            "Use /stop to end the quiz."
         )
 
     @bot.on_message(filters.text & ~filters.command(["guess", "answer", "stop"]))
-    async def check_guess(_, msg: Message):
-        user_id = str(msg.from_user.id)
+    async def check_answer(_, msg: Message):
 
-        if user_id not in active_games:
+        if current_quiz["word"] is None:
             return
 
-        if not active_games[user_id]["answer_mode"]:
+        if not current_quiz["answer_mode"]:
             return
 
         guess = msg.text.strip().lower()
-        correct = active_games[user_id]["word"]
+        correct = current_quiz["word"]
 
         if guess == correct:
+
+            reward = random.randint(50, 200)
+
             user = get_user(msg.from_user.id)
-            reward = random.randint(20, 120)
             new_bronze = user.get("bronze", 0) + reward
             update_user(msg.from_user.id, {"bronze": new_bronze})
-            del active_games[user_id]
+
+            winner = msg.from_user.mention
+
+            # Reset quiz
+            current_quiz["word"] = None
+            current_quiz["hint"] = None
+            current_quiz["answer_mode"] = False
 
             return await msg.reply(
-                f"🎉 **Correct!**\n"
-                f"You earned **{reward} Bronze 🥉**!"
+                f"🎉 **Correct Answer!**\n"
+                f"🏆 Winner: {winner}\n"
+                f"🎁 Reward: **{reward} Bronze 🥉**"
             )
 
-        await msg.reply("❌ Wrong guess. Try again!")
+        await msg.reply("❌ Wrong guess! Try again.")
 
     @bot.on_message(filters.command("stop"))
-    async def stop_guess(_, msg: Message):
-        user_id = str(msg.from_user.id)
+    async def stop_quiz(_, msg: Message):
+        if current_quiz["word"] is None:
+            return await msg.reply("There is no active quiz.")
 
-        if user_id in active_games:
-            del active_games[user_id]
-            return await msg.reply("🛑 Guess game stopped.")
+        current_quiz["word"] = None
+        current_quiz["hint"] = None
+        current_quiz["answer_mode"] = False
 
-        await msg.reply("You have no active game.")
+        await msg.reply("🛑 **Quiz stopped successfully.**")
