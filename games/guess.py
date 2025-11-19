@@ -1,4 +1,3 @@
-# guess.py
 from pyrogram import Client, filters
 from pyrogram.types import (
     Message,
@@ -11,38 +10,28 @@ import random
 import os
 from database.mongo import get_user, update_user
 
-# ---- Config ----
-WORDS_PATH = os.path.join("assets", "words.json")  # as requested
-DEFAULT_WORDS = {"easy": {}, "medium": {}, "hard": {}}
+# ---- Paths for the 3 difficulty files ----
+ASSETS_DIR = os.path.join("games", "assets")
+EASY_PATH = os.path.join(ASSETS_DIR, "Easy.json")
+MEDIUM_PATH = os.path.join(ASSETS_DIR, "Medium.json")
+HARD_PATH = os.path.join(ASSETS_DIR, "Hard.json")
 
-# ---- Load words ----
-def load_words(path=WORDS_PATH):
+# ---- Load words from the 3 JSON files ----
+def load_json(path):
     try:
         with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            # ensure keys exist
-            return {
-                "easy": data.get("easy", {}),
-                "medium": data.get("medium", {}),
-                "hard": data.get("hard", {}),
-            }
-    except FileNotFoundError:
-        print(f"[WARN] words.json not found at {path}. Using empty lists.")
-        return DEFAULT_WORDS.copy()
-    except Exception as e:
-        print(f"[WARN] Failed to load {path}: {e}")
-        return DEFAULT_WORDS.copy()
+            return json.load(f)
+    except:
+        return {}
 
-WORDS = load_words()
+WORDS = {
+    "easy": load_json(EASY_PATH),
+    "medium": load_json(MEDIUM_PATH),
+    "hard": load_json(HARD_PATH),
+}
 
 # ---- Per-chat quiz state ----
-# chat_id (str) -> {
-#   "difficulty": "easy"/"medium"/"hard",
-#   "word": "currentword",
-#   "hint": "hint text",
-#   "answer_mode": False
-# }
-chats = {}
+chats = {}   # chat_id -> quiz state dictionary
 
 # ---- Helpers ----
 def pick_random_word(category: str):
@@ -63,178 +52,143 @@ def buttons_markup():
         ]
     )
 
-def pretty_hint(hint: str, word_len: int):
-    return f"{hint}\n\n🔤 Letters: {word_len}"
+def pretty_hint(hint: str, length: int):
+    return f"{hint}\n\n🔤 Letters: {length}"
 
-# ---- Init function to register with the bot ----
+# ---- Init function ----
 def init_guess(bot: Client):
-    """
-    Call init_guess(bot) to register handlers.
-    Expects `assets/words.json` to exist and be structured as:
-    {
-      "easy": { "apple": "hint", ... },
-      "medium": { "planet": "hint", ... },
-      "hard": { "crystal": "hint", ... }
-    }
-    """
 
     @bot.on_message(filters.command("guess"))
     async def cmd_guess(_, msg: Message):
-        """
-        Show difficulty selection buttons.
-        If a quiz is already active in the chat, inform the user instead.
-        """
         chat_id = str(msg.chat.id)
-        state = chats.get(chat_id)
-        if state and state.get("word"):
-            await msg.reply(
-                "⚠️ A quiz is already running in this chat.\n\n"
-                "Use /answer to enable answering or /stop to end the quiz."
-            )
-            return
 
-        await msg.reply("🧠 Choose quiz difficulty:", reply_markup=buttons_markup())
+        if chat_id in chats and chats[chat_id].get("word"):
+            return await msg.reply(
+                "⚠️ A quiz is already running.\nUse /answer or /stop."
+            )
+
+        await msg.reply(
+            "🧠 **Choose difficulty**:",
+            reply_markup=buttons_markup()
+        )
 
     @bot.on_callback_query(filters.regex(r"^guess_(easy|medium|hard)$"))
-    async def on_difficulty(client: Client, cq: CallbackQuery):
-        """
-        Start a quiz for the selected difficulty. Only one quiz per chat.
-        """
-        level = cq.data.split("_", 1)[1]  # easy / medium / hard
+    async def difficulty_selected(_, cq: CallbackQuery):
         chat_id = str(cq.message.chat.id)
+        difficulty = cq.data.split("_")[1]
 
-        # If a quiz is already running in this chat, inform the user
-        state = chats.get(chat_id)
-        if state and state.get("word"):
-            await cq.answer("A quiz is already running. Use /stop to end it.", show_alert=True)
-            return
+        if chat_id in chats and chats[chat_id].get("word"):
+            return await cq.answer("Quiz already running. Use /stop.", show_alert=True)
 
-        word, hint = pick_random_word(level)
+        word, hint = pick_random_word(difficulty)
         if not word:
-            await cq.answer("No words available for this difficulty.", show_alert=True)
-            return
+            return await cq.answer(
+                "❌ No words available for this category.",
+                show_alert=True
+            )
 
         chats[chat_id] = {
-            "difficulty": level,
+            "difficulty": difficulty,
             "word": word,
             "hint": hint,
             "answer_mode": False,
         }
 
-        # Edit or reply with the hint and instructions
-        try:
-            await cq.message.edit_text(
-                f"🧩 **New Quiz — {level.title()}**\n\n"
-                f"🔎 **Hint:** {pretty_hint(hint, len(word))}\n\n"
-                "📌 Use `/answer` to enable answering (everyone in chat can participate).\n"
-                "▶ Use `/new` to get a new word (same difficulty).\n"
-                "🛑 Use `/stop` to end the quiz.",
-                parse_mode="md",
-            )
-        except Exception:
-            # fallback in case edit fails (e.g., message no longer editable)
-            await cq.message.reply_text(
-                f"🧩 **New Quiz — {level.title()}**\n\n"
-                f"🔎 **Hint:** {pretty_hint(hint, len(word))}\n\n"
-                "📌 Use /answer to enable answering (everyone in chat can participate).\n"
-                "▶ Use /new to get a new word (same difficulty).\n"
-                "🛑 Use /stop to end the quiz."
-            )
-
+        await cq.message.edit_text(
+            f"🧩 **New Quiz — {difficulty.title()} Mode**\n\n"
+            f"🔎 **Hint:** {pretty_hint(hint, len(word))}\n\n"
+            "📌 Use `/answer` to start answering.\n"
+            "▶ Use `/new` to get a new word.\n"
+            "🛑 Use `/stop` to end the quiz.",
+            parse_mode="md"
+        )
         await cq.answer()
 
     @bot.on_message(filters.command("answer"))
-    async def cmd_answer(_, msg: Message):
-        """
-        Enable answer mode for the chat's current quiz.
-        """
+    async def enable_answer(_, msg: Message):
         chat_id = str(msg.chat.id)
         state = chats.get(chat_id)
+
         if not state or not state.get("word"):
-            return await msg.reply("❌ No quiz running. Use /guess to start one.")
-        if state.get("answer_mode"):
-            return await msg.reply("✅ Answer mode is already enabled. Send your guess.")
+            return await msg.reply("❌ No active quiz.")
+
+        if state["answer_mode"]:
+            return await msg.reply("📝 Answer mode already enabled.")
+
         state["answer_mode"] = True
-        await msg.reply("📝 **Answer mode ON!** Send your guesses as normal messages. Use /stop to end the quiz.")
+        await msg.reply("📝 **Answer mode enabled!** Send your guesses.")
 
     @bot.on_message(filters.command("new"))
-    async def cmd_new(_, msg: Message):
-        """
-        Provide a new word of the same difficulty for the chat.
-        Resets answer_mode to False (requires /answer again).
-        """
+    async def new_word(_, msg: Message):
         chat_id = str(msg.chat.id)
         state = chats.get(chat_id)
-        if not state or not state.get("word"):
-            return await msg.reply("❌ No active quiz. Use /guess to start.")
-        cat = state["difficulty"]
-        word, hint = pick_random_word(cat)
+
+        if not state:
+            return await msg.reply("❌ No active quiz.")
+
+        difficulty = state["difficulty"]
+        word, hint = pick_random_word(difficulty)
+
         if not word:
-            return await msg.reply("No more words available in this difficulty.")
+            return await msg.reply("No words available.")
+
         state.update({"word": word, "hint": hint, "answer_mode": False})
-        await msg.reply(f"🔎 **New Hint:** {pretty_hint(hint, len(word))}\n\nUse /answer to start answering.")
+
+        await msg.reply(
+            f"🔎 **New Hint:** {pretty_hint(hint, len(word))}\n\n"
+            "Use /answer to enable answering."
+        )
 
     @bot.on_message(filters.text & ~filters.command(["guess", "answer", "new", "stop"]))
-    async def on_text(_, msg: Message):
-        """
-        Handle incoming plain-text messages as potential guesses when answer_mode is enabled.
-        """
+    async def process_answer(_, msg: Message):
         chat_id = str(msg.chat.id)
         state = chats.get(chat_id)
-        if not state or not state.get("word"):
-            return  # no quiz running
-        if not state.get("answer_mode"):
-            return  # answer mode not enabled
 
-        # Accept the message as a guess (normalized)
+        if not state or not state.get("word") or not state.get("answer_mode"):
+            return
+
         guess = msg.text.strip().lower()
-        correct = state["word"].strip().lower()
+        correct = state["word"].lower()
 
-        if guess == correct:
-            # reward flow
-            reward = random.randint(50, 200)
-            try:
-                user = get_user(msg.from_user.id)
-            except Exception:
-                user = {}
-            new_bronze = user.get("bronze", 0) + reward
-            try:
-                update_user(msg.from_user.id, {"bronze": new_bronze})
-            except Exception:
-                # fail-safe: do not crash if DB update fails
-                pass
+        if guess != correct:
+            return await msg.reply("❌ Wrong answer! Try again.")
 
-            winner = msg.from_user.mention if msg.from_user else "Someone"
+        reward = random.randint(50, 200)
 
-            # reset chat quiz
-            chats.pop(chat_id, None)
+        try:
+            user = get_user(msg.from_user.id)
+            update_user(msg.from_user.id, {"bronze": user.get("bronze", 0) + reward})
+        except:
+            pass
 
-            await msg.reply(
-                f"🎉 **Correct!**\n"
-                f"🏆 Winner: {winner}\n"
-                f"🎁 Reward: **{reward} Bronze 🥉**\n\n"
-                "Use /guess to start a new quiz."
-            )
-        else:
-            # gentle wrong-answer reply
-            await msg.reply("❌ Wrong guess. Try again!")
+        winner = msg.from_user.mention
+
+        chats.pop(chat_id, None)
+
+        await msg.reply(
+            f"🎉 **Correct!**\n"
+            f"🏆 Winner: {winner}\n"
+            f"🎁 Reward: **{reward} Bronze 🥉**\n\n"
+            "Use /guess to play again."
+        )
 
     @bot.on_message(filters.command("stop"))
-    async def cmd_stop(_, msg: Message):
-        """
-        Stop and clear the current quiz for the chat.
-        """
+    async def stop_quiz(_, msg: Message):
         chat_id = str(msg.chat.id)
-        if chats.get(chat_id) and chats[chat_id].get("word"):
-            chats.pop(chat_id, None)
-            return await msg.reply("🛑 **Quiz stopped successfully.**")
-        return await msg.reply("There is no active quiz in this chat.")
 
-    # Admin: reload words.json at runtime (only for bot owner)
+        if chat_id in chats:
+            chats.pop(chat_id)
+            return await msg.reply("🛑 **Quiz stopped.**")
+
+        await msg.reply("❌ No active quiz.")
+
+    # Owner command to reload JSON files without restart
     @bot.on_message(filters.command("reload_words") & filters.me)
-    async def cmd_reload(_, msg: Message):
+    async def reload_words(_, msg: Message):
         global WORDS
-        WORDS = load_words()
-        await msg.reply("🔄 words.json reloaded.")
-
-    # end init_guess
+        WORDS = {
+            "easy": load_json(EASY_PATH),
+            "medium": load_json(MEDIUM_PATH),
+            "hard": load_json(HARD_PATH),
+        }
+        await msg.reply("🔄 **Word lists reloaded!**")
