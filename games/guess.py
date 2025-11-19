@@ -1,303 +1,240 @@
+# guess.py
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import (
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery,
+)
+import json
 import random
+import os
 from database.mongo import get_user, update_user
 
-# -----------------------------------------
-# WORDS + HINTS
-# -----------------------------------------
+# ---- Config ----
+WORDS_PATH = os.path.join("assets", "words.json")  # as requested
+DEFAULT_WORDS = {"easy": {}, "medium": {}, "hard": {}}
 
-HINTS = {
-    "apple": "A popular fruit that keeps doctors away.",
-    "grape": "A small juicy fruit often used to make wine.",
-    "bread": "A staple food made by baking dough.",
-    "chair": "A piece of furniture used for sitting.",
-    "table": "A flat surface supported by legs.",
-    "house": "A building where people live.",
-    "light": "A source that makes things visible.",
-    "heart": "The organ that pumps blood in the body.",
-    "ocean": "A vast body of saltwater.",
-    "earth": "The planet we live on.",
-    "water": "A colorless liquid essential for life.",
-    "smile": "A facial expression showing happiness.",
-    "laugh": "A sound expressing joy or amusement.",
-    "dream": "A series of thoughts during sleep.",
-    "flame": "The bright, glowing part of a fire.",
-    "beach": "A sandy area by the sea.",
-    "grass": "Green plants covering the ground.",
-    "cloud": "A mass of water vapor in the sky.",
-    "storm": "A violent weather condition.",
-    "peace": "A state without conflict.",
-    "music": "Art made from sounds and rhythm.",
-    "voice": "Sound produced when speaking.",
-    "sound": "Vibrations that can be heard.",
-    "stone": "A hard solid piece of mineral.",
-    "river": "A natural stream of flowing water.",
-    "mount": "To climb or rise onto something.",
-    "plant": "A living organism that grows in soil.",
-    "flour": "Powder made from grinding grains.",
-    "wheat": "A grain used to make bread.",
-    "angel": "A heavenly spiritual being.",
-    "devil": "An evil or fallen angel.",
-    "brave": "Showing courage in danger.",
-    "happy": "Feeling joy or contentment.",
-    "sadly": "In a sorrowful way.",
-    "pride": "Satisfaction in achievements.",
-    "crowd": "A large group of people.",
-    "night": "The dark part of a day.",
-    "early": "Before the usual time.",
-    "later": "After the expected time.",
-    "space": "The universe beyond Earth.",
-    "speed": "How fast something moves.",
-    "green": "The color of fresh grass.",
-    "black": "The darkest color.",
-    "white": "The lightest color.",
-    "brown": "A color between red and yellow.",
-    "clear": "Easy to understand or transparent.",
-    "world": "Earth and everything in it.",
-    "faith": "Strong belief or trust.",
-    "honor": "High respect or esteem.",
-    "glory": "Fame achieved by notable actions.",
-    "fancy": "To imagine or desire something.",
-    "forest": "A large area covered with trees.",
-    "desert": "A dry area with very little rain.",
-    "island": "Land surrounded by water.",
-    "jungle": "A dense, tropical forest.",
-    "stormy": "Full of heavy wind and rain.",
-    "sunset": "Time when the sun goes down.",
-    "sunrise": "Time when the sun comes up.",
-    "shadow": "A dark shape made by blocking light.",
-    "mirror": "Reflects your image.",
-    "window": "An opening in a wall used to see outside.",
-    "pillow": "Soft cushion used to rest your head.",
-    "blanket": "A warm cover used during sleep.",
-    "kettle": "A container used for boiling water.",
-    "bottle": "A container typically used for liquids.",
-    "bucket": "A round open container with a handle.",
-    "basket": "A container woven out of flexible materials.",
-    "orange": "A citrus fruit known for vitamin C.",
-    "banana": "A yellow curved fruit rich in potassium.",
-    "mango": "A sweet tropical fruit known as king of fruits.",
-    "papaya": "A tropical fruit with orange flesh.",
-    "candle": "A stick of wax that gives light when lit.",
-    "camera": "A device used to capture photographs.",
-    "mobile": "A handheld device used for communication.",
-    "laptop": "A portable personal computer.",
-    "pencil": "A writing tool made of graphite.",
-    "marker": "A pen with thick colored ink.",
-    "paper": "Thin material used for writing or printing.",
-    "notebook": "A book of blank pages for writing.",
-    "school": "A place where students learn.",
-    "teacher": "A person who educates others.",
-    "student": "A person who studies or learns.",
-    "doctor": "A person who treats illnesses.",
-    "nurse": "Someone who cares for people in hospitals.",
-    "rocket": "A vehicle designed to travel into space.",
-    "planet": "A large object orbiting a star.",
-    "galaxy": "A massive system of stars and planets.",
-    "comet": "A space object made of ice and dust.",
-    "meteor": "A rock from space that burns in the atmosphere.",
-    "engine": "A machine that produces power.",
-    "helmet": "Protection worn on the head.",
-    "wallet": "A small case for holding money.",
-    "pocket": "A small pouch sewn into clothing.",
-    "button": "A small object used to fasten clothing.",
-    "jacket": "A piece of clothing worn to keep warm.",
-    "ladder": "A tool used to reach high places.",
-    "bridge": "A structure allowing passage over obstacles.",
-    "harbor": "A safe place for ships to anchor.",
-    "castle": "A large fortified ancient building.",
-    "armor": "Protective covering worn in battle.",
-    "shield": "A defensive item used to block attacks.",
-    "sword": "A long-bladed weapon used for fighting.",
-    "arrow": "A sharp projectile shot from a bow.",
-    "hunter": "One who tracks and captures animals.",
-    "farmer": "A person who grows crops or raises animals.",
-    "builder": "Someone who constructs buildings.",
-    "driver": "A person who operates a vehicle.",
-    "sailor": "One who works on a boat or ship.",
-    "captain": "A leader of a ship or team.",
-    "leader": "Someone who guides others.",
-    "king": "A male ruler of a kingdom.",
-    "queen": "A female ruler of a kingdom.",
-    "prince": "A male royal family member.",
-    "princess": "A female royal family member.",
-    "monkey": "A playful animal that climbs trees.",
-    "tiger": "A large striped wild cat.",
-    "lion": "A powerful big cat known as king of the jungle.",
-    "horse": "An animal often used for riding.",
-    "rabbit": "A small animal with long ears.",
-    "mouse": "A tiny rodent attracted to food.",
-    "eagle": "A bird known for sharp eyesight.",
-    "parrot": "A bird that can mimic speech.",
-    "pigeon": "A common city bird.",
-    "spider": "A creature with eight legs.",
-    "snake": "A legless reptile that slithers.",
-    "shark": "A large predatory fish.",
-    "dolphin": "A smart, playful marine animal.",
-    "whale": "One of the largest mammals alive.",
-    "zebra": "A striped black-and-white animal.",
-    "camel": "A desert animal with humps.",
-    "sheep": "A wool-producing farm animal.",
-    "goat": "A farm animal known for climbing.",
-    "crow": "A black bird known for intelligence.",
-    "elevator": "A machine used to move people between floors.",
-    "stairs": "Steps used for climbing.",
-    "escalator": "Moving stairs.",
-    "kitchen": "A room where food is prepared.",
-    "bedroom": "A room where people sleep.",
-    "bathroom": "A room with toilet and shower.",
-    "garden": "An outdoor area with plants.",
-    "garage": "A place to park vehicles.",
-    "factory": "A building where products are made.",
-    "library": "A place full of books.",
-    "station": "A place where trains or buses stop.",
-    "airport": "A place where airplanes take off.",
-    "stadium": "A venue for sports.",
-    "theater": "A place to watch movies or plays.",
-    "cookie": "A small sweet baked treat.",
-    "butter": "A dairy product used for cooking.",
-    "cheese": "A dairy food from milk curds.",
-    "honey": "A sweet substance made by bees.",
-    "sugar": "A sweet substance.",
-    "salt": "Seasoning mineral.",
-    "pepper": "A spice.",
-    "chicken": "A type of poultry meat.",
-    "pizza": "Dough with sauce and cheese.",
-    "burger": "Patty between buns.",
-    "noodle": "Thin long dough pieces.",
-    "pasta": "Italian noodles.",
-    "salad": "Mixed vegetables.",
-    "soup": "Liquid dish.",
-    "steak": "Thick cut of beef.",
-    "bacon": "Salt-cured meat.",
-    "coffee": "Hot drink from beans.",
-    "tea": "Beverage from steeped leaves.",
-    "juice": "Liquid from fruits.",
-    "milk": "White liquid from mammals.",
-    "chocolate": "Sweet from cocoa.",
-    "cereal": "Grains for breakfast.",
-    "avocado": "Creamy green fruit.",
-    "carrot": "Orange root vegetable.",
-    "tomato": "Red fruit used in salads.",
-    "potato": "Starchy vegetable.",
-    "onion": "Strong-smelling vegetable.",
-    "peppermint": "Cool herb.",
-    "ginger": "Spicy root.",
-    "garlic": "Strong-smelling bulb.",
-    "cucumber": "Long green vegetable.",
-    "pumpkin": "Large orange vegetable.",
-    "coconut": "Hard-shelled tropical fruit.",
-    "dragon": "Mythical fire-breathing creature.",
-    "wizard": "Magic user.",
-    "witch": "Person with magical powers.",
-    "ghost": "Spirit of a dead person.",
-    "zombie": "Reanimated corpse.",
-    "robot": "Mechanical machine.",
-    "alien": "Creature from another planet.",
-    "giant": "Very large human-like creature.",
-    "knight": "Armored medieval fighter.",
-    "archer": "Bow-and-arrow expert.",
-    "villain": "Story's bad character.",
-    "hero": "Main character who saves the day.",
-    "portal": "Door to another world.",
-    "crystal": "Transparent mineral.",
-    "treasure": "Valuable items."
-}
+# ---- Load words ----
+def load_words(path=WORDS_PATH):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # ensure keys exist
+            return {
+                "easy": data.get("easy", {}),
+                "medium": data.get("medium", {}),
+                "hard": data.get("hard", {}),
+            }
+    except FileNotFoundError:
+        print(f"[WARN] words.json not found at {path}. Using empty lists.")
+        return DEFAULT_WORDS.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to load {path}: {e}")
+        return DEFAULT_WORDS.copy()
 
-WORD_LIST = list(HINTS.keys())
+WORDS = load_words()
 
-# -----------------------------------------
-# GLOBAL QUIZ STORAGE
-# -----------------------------------------
-current_quiz = {
-    "word": None,
-    "hint": None,
-    "answer_mode": False
-}
+# ---- Per-chat quiz state ----
+# chat_id (str) -> {
+#   "difficulty": "easy"/"medium"/"hard",
+#   "word": "currentword",
+#   "hint": "hint text",
+#   "answer_mode": False
+# }
+chats = {}
 
-# -----------------------------------------
-# INIT FUNCTION
-# -----------------------------------------
+# ---- Helpers ----
+def pick_random_word(category: str):
+    pool = WORDS.get(category, {})
+    if not pool:
+        return None, None
+    word = random.choice(list(pool.keys()))
+    return word, pool[word]
+
+def buttons_markup():
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("Easy", callback_data="guess_easy"),
+                InlineKeyboardButton("Medium", callback_data="guess_medium"),
+                InlineKeyboardButton("Hard", callback_data="guess_hard"),
+            ]
+        ]
+    )
+
+def pretty_hint(hint: str, word_len: int):
+    return f"{hint}\n\n🔤 Letters: {word_len}"
+
+# ---- Init function to register with the bot ----
 def init_guess(bot: Client):
+    """
+    Call init_guess(bot) to register handlers.
+    Expects `assets/words.json` to exist and be structured as:
+    {
+      "easy": { "apple": "hint", ... },
+      "medium": { "planet": "hint", ... },
+      "hard": { "crystal": "hint", ... }
+    }
+    """
 
     @bot.on_message(filters.command("guess"))
-    async def start_quiz(_, msg: Message):
-        if current_quiz["word"] is not None:
-            return await msg.reply(
-                "⚠️ **A quiz is already running in this chat!**\n\n"
-                "Use **/answer** to participate.\n"
-                "Or use **/stop** to end the current quiz before starting a new one. 🛑"
+    async def cmd_guess(_, msg: Message):
+        """
+        Show difficulty selection buttons.
+        If a quiz is already active in the chat, inform the user instead.
+        """
+        chat_id = str(msg.chat.id)
+        state = chats.get(chat_id)
+        if state and state.get("word"):
+            await msg.reply(
+                "⚠️ A quiz is already running in this chat.\n\n"
+                "Use /answer to enable answering or /stop to end the quiz."
+            )
+            return
+
+        await msg.reply("🧠 Choose quiz difficulty:", reply_markup=buttons_markup())
+
+    @bot.on_callback_query(filters.regex(r"^guess_(easy|medium|hard)$"))
+    async def on_difficulty(client: Client, cq: CallbackQuery):
+        """
+        Start a quiz for the selected difficulty. Only one quiz per chat.
+        """
+        level = cq.data.split("_", 1)[1]  # easy / medium / hard
+        chat_id = str(cq.message.chat.id)
+
+        # If a quiz is already running in this chat, inform the user
+        state = chats.get(chat_id)
+        if state and state.get("word"):
+            await cq.answer("A quiz is already running. Use /stop to end it.", show_alert=True)
+            return
+
+        word, hint = pick_random_word(level)
+        if not word:
+            await cq.answer("No words available for this difficulty.", show_alert=True)
+            return
+
+        chats[chat_id] = {
+            "difficulty": level,
+            "word": word,
+            "hint": hint,
+            "answer_mode": False,
+        }
+
+        # Edit or reply with the hint and instructions
+        try:
+            await cq.message.edit_text(
+                f"🧩 **New Quiz — {level.title()}**\n\n"
+                f"🔎 **Hint:** {pretty_hint(hint, len(word))}\n\n"
+                "📌 Use `/answer` to enable answering (everyone in chat can participate).\n"
+                "▶ Use `/new` to get a new word (same difficulty).\n"
+                "🛑 Use `/stop` to end the quiz.",
+                parse_mode="md",
+            )
+        except Exception:
+            # fallback in case edit fails (e.g., message no longer editable)
+            await cq.message.reply_text(
+                f"🧩 **New Quiz — {level.title()}**\n\n"
+                f"🔎 **Hint:** {pretty_hint(hint, len(word))}\n\n"
+                "📌 Use /answer to enable answering (everyone in chat can participate).\n"
+                "▶ Use /new to get a new word (same difficulty).\n"
+                "🛑 Use /stop to end the quiz."
             )
 
-        word = random.choice(WORD_LIST)
-        hint = HINTS[word]
-
-        current_quiz["word"] = word
-        current_quiz["hint"] = hint
-        current_quiz["answer_mode"] = False
-
-        await msg.reply(
-            f"🧩 **New Guess Quiz Started!**\n\n"
-            f"🔎 **Hint:** {hint}\n\n"
-            f"Use **/answer** to start guessing!"
-        )
+        await cq.answer()
 
     @bot.on_message(filters.command("answer"))
-    async def enable_answer(_, msg: Message):
-        if current_quiz["word"] is None:
-            return await msg.reply("❌ No quiz running.\nUse **/guess** to start one.")
+    async def cmd_answer(_, msg: Message):
+        """
+        Enable answer mode for the chat's current quiz.
+        """
+        chat_id = str(msg.chat.id)
+        state = chats.get(chat_id)
+        if not state or not state.get("word"):
+            return await msg.reply("❌ No quiz running. Use /guess to start one.")
+        if state.get("answer_mode"):
+            return await msg.reply("✅ Answer mode is already enabled. Send your guess.")
+        state["answer_mode"] = True
+        await msg.reply("📝 **Answer mode ON!** Send your guesses as normal messages. Use /stop to end the quiz.")
 
-        current_quiz["answer_mode"] = True
+    @bot.on_message(filters.command("new"))
+    async def cmd_new(_, msg: Message):
+        """
+        Provide a new word of the same difficulty for the chat.
+        Resets answer_mode to False (requires /answer again).
+        """
+        chat_id = str(msg.chat.id)
+        state = chats.get(chat_id)
+        if not state or not state.get("word"):
+            return await msg.reply("❌ No active quiz. Use /guess to start.")
+        cat = state["difficulty"]
+        word, hint = pick_random_word(cat)
+        if not word:
+            return await msg.reply("No more words available in this difficulty.")
+        state.update({"word": word, "hint": hint, "answer_mode": False})
+        await msg.reply(f"🔎 **New Hint:** {pretty_hint(hint, len(word))}\n\nUse /answer to start answering.")
 
-        await msg.reply(
-            "📝 **Answer Mode Enabled!**\n"
-            "Send your guesses now!\n"
-            "Use /stop to end the quiz."
-        )
+    @bot.on_message(filters.text & ~filters.command(["guess", "answer", "new", "stop"]))
+    async def on_text(_, msg: Message):
+        """
+        Handle incoming plain-text messages as potential guesses when answer_mode is enabled.
+        """
+        chat_id = str(msg.chat.id)
+        state = chats.get(chat_id)
+        if not state or not state.get("word"):
+            return  # no quiz running
+        if not state.get("answer_mode"):
+            return  # answer mode not enabled
 
-    @bot.on_message(filters.text & ~filters.command(["guess", "answer", "stop"]))
-    async def check_answer(_, msg: Message):
-
-        if current_quiz["word"] is None:
-            return
-
-        if not current_quiz["answer_mode"]:
-            return
-
+        # Accept the message as a guess (normalized)
         guess = msg.text.strip().lower()
-        correct = current_quiz["word"]
+        correct = state["word"].strip().lower()
 
         if guess == correct:
-
+            # reward flow
             reward = random.randint(50, 200)
-
-            user = get_user(msg.from_user.id)
+            try:
+                user = get_user(msg.from_user.id)
+            except Exception:
+                user = {}
             new_bronze = user.get("bronze", 0) + reward
-            update_user(msg.from_user.id, {"bronze": new_bronze})
+            try:
+                update_user(msg.from_user.id, {"bronze": new_bronze})
+            except Exception:
+                # fail-safe: do not crash if DB update fails
+                pass
 
-            winner = msg.from_user.mention
+            winner = msg.from_user.mention if msg.from_user else "Someone"
 
-            # Reset quiz
-            current_quiz["word"] = None
-            current_quiz["hint"] = None
-            current_quiz["answer_mode"] = False
+            # reset chat quiz
+            chats.pop(chat_id, None)
 
-            return await msg.reply(
-                f"🎉 **Correct Answer!**\n"
+            await msg.reply(
+                f"🎉 **Correct!**\n"
                 f"🏆 Winner: {winner}\n"
-                f"🎁 Reward: **{reward} Bronze 🥉**"
+                f"🎁 Reward: **{reward} Bronze 🥉**\n\n"
+                "Use /guess to start a new quiz."
             )
-
-        await msg.reply("❌ Wrong guess! Try again.")
+        else:
+            # gentle wrong-answer reply
+            await msg.reply("❌ Wrong guess. Try again!")
 
     @bot.on_message(filters.command("stop"))
-    async def stop_quiz(_, msg: Message):
-        if current_quiz["word"] is None:
-            return await msg.reply("There is no active quiz.")
+    async def cmd_stop(_, msg: Message):
+        """
+        Stop and clear the current quiz for the chat.
+        """
+        chat_id = str(msg.chat.id)
+        if chats.get(chat_id) and chats[chat_id].get("word"):
+            chats.pop(chat_id, None)
+            return await msg.reply("🛑 **Quiz stopped successfully.**")
+        return await msg.reply("There is no active quiz in this chat.")
 
-        current_quiz["word"] = None
-        current_quiz["hint"] = None
-        current_quiz["answer_mode"] = False
+    # Admin: reload words.json at runtime (only for bot owner)
+    @bot.on_message(filters.command("reload_words") & filters.me)
+    async def cmd_reload(_, msg: Message):
+        global WORDS
+        WORDS = load_words()
+        await msg.reply("🔄 words.json reloaded.")
 
-        await msg.reply("🛑 **Quiz stopped successfully.**")
+    # end init_guess
