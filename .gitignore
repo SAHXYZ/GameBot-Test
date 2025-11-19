@@ -1,0 +1,35 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Pyrogram / Telethon session files
+*.session
+*.session-journal
+
+# Logs
+*.log
+
+# Env files (keep your secrets safe)
+.env
+*.env
+
+# JSON data files (optional)
+data.json
+
+# VSCode settings
+.vscode/
+
+# PyCharm settings
+.idea/
