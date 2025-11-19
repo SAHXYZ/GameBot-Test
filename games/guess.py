@@ -100,7 +100,7 @@ def init_guess(bot: Client):
             "📌 Use `/answer` to start answering.\n"
             "▶ Use `/new` to get a new word.\n"
             "🛑 Use `/stop` to end the quiz.",
-            parse_mode="md"
+            parse_mode="markdown"
         )
         await cq.answer()
 
