@@ -1,5 +1,5 @@
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ParseMode
 import traceback
 
@@ -9,7 +9,9 @@ def init_help(bot: Client):
     @bot.on_message(filters.command(["help", "commands"]))
     async def help_cmd(_, msg: Message):
         try:
-            text = (
+
+            # ---------- FULL HELP (Private Chat) ----------
+            full_help = (
                 "⚙️ ● <b><i>HELP CENTER</i></b>\n\n"
                 "⟡ <b><i>Profile</i></b>\n"
                 "• /profile — View Your Profile\n\n"
@@ -32,11 +34,36 @@ def init_help(bot: Client):
                 "For Better Performance.</i> ⚡️"
             )
 
-            await msg.reply_text(
-                text,
-                parse_mode=ParseMode.HTML,   # ✔ FIX
-                disable_web_page_preview=True
+            # ---------- SHORT HELP FOR GROUP ----------
+            group_help = (
+                "⚙️ ● <b>HELP CENTER</b>\n\n"
+                "⟡ <i>Tip: You Should Use These Commands In Bot's Personal Chat "
+                "For Better Performance!</i> ⚡️"
             )
+
+            # Deep-link to open PM help
+            deep_link = f"https://t.me/{(await bot.get_me()).username}?start=help"
+
+            # Keyboard for groups
+            group_kb = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("📘 Help & Commands", url=deep_link)]]
+            )
+
+            # Detect chat type
+            if msg.chat.type in ("supergroup", "group"):
+                # Send short help in group
+                await msg.reply_text(
+                    group_help,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=group_kb
+                )
+            else:
+                # Send full help in PM
+                await msg.reply_text(
+                    full_help,
+                    parse_mode=ParseMode.HTML,
+                    disable_web_page_preview=True
+                )
 
         except Exception:
             traceback.print_exc()
