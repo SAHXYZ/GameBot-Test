@@ -1,3 +1,4 @@
+# File: GameBot/GameBot/main.py
 from pyrogram import Client
 import importlib
 import traceback
@@ -6,8 +7,7 @@ import os
 from config import API_ID, API_HASH, BOT_TOKEN
 from database.mongo import client  # ensure MongoDB initializes first
 
-# Ensure package path resolution works whether running as package or script
-# Add project root to sys.path to make imports like "games.*" resolvable.
+# Ensure project root is on sys.path so "games.*" imports work whether run as script or package
 _this_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.dirname(_this_dir)
 if _project_root not in sys.path:
@@ -22,19 +22,12 @@ bot = Client(
 )
 
 def safe_init(module_name: str):
-    """Load game modules safely.
-
-    This tries multiple import styles to be resilient to how the user runs
-    the project (as package or as script). It will try:
-      - games.<module_name>
-      - GameBot.games.<module_name> (package-prefixed)
+    """
+    Load game modules safely.
+    Tries multiple qualified import names to be resilient to how the bot is started.
     """
     tried = []
-    candidates = [
-        f"games.{module_name}",
-    ]
-    # If package name is available (when executed as package), try that too.
-    # Try to detect the top-level package name (folder name)
+    candidates = [f"games.{module_name}"]
     top_pkg = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
     candidates.append(f"{top_pkg}.games.{module_name}")
 
@@ -51,15 +44,12 @@ def safe_init(module_name: str):
                 print(f"[skipped] {qualname} (no init function)")
             return
         except Exception as e:
-            # keep trying other candidates
             print(f"[DEBUG] Import attempt failed for '{qualname}': {e}")
-            # continue to next candidate
+            # continue trying other candidates
 
-    # If we get here, none of the import attempts worked; report a clear error.
     print(f"[ERROR] Failed loading module '{module_name}'. Tried: {tried}")
     traceback.print_exc()
 
-# Define the modules (you had this split into required/optional)
 required_modules = [
     "start", "flip", "roll", "rob",
     "fight", "top"
@@ -78,7 +68,7 @@ if __name__ == "__main__":
     for module in optional_modules:
         safe_init(module)
 
-    # Load callbacks LAST (if you have a callbacks module)
+    # Load callbacks LAST
     safe_init("callbacks")
 
     print("\n✔ GameBot is running with MongoDB!")
