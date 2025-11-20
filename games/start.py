@@ -69,10 +69,8 @@ def init_start(bot: Client):
                 )
                 return
 
-            # ===== Detect if chat is private =====
-            PRIVATE = msg.chat.type == "private"
-
             bot_me = await _.get_me()
+            PRIVATE = msg.chat.type == "private"
 
             if PRIVATE:
                 # ===== DM → Full start text + menu =====
@@ -81,7 +79,7 @@ def init_start(bot: Client):
                     reply_markup=get_start_menu()
                 )
             else:
-                # ===== GROUP → Show simple message + Start button → redirects to DM =====
+                # ===== GROUP → SAME start text but only 1 Start button =====
                 start_btn = InlineKeyboardMarkup([
                     [InlineKeyboardButton(
                         "Start",
@@ -90,7 +88,7 @@ def init_start(bot: Client):
                 ])
 
                 await msg.reply(
-                    f"Hello {msg.from_user.first_name}, tap the button below to start me in DM 👇",
+                    START_TEXT.format(name=msg.from_user.first_name),
                     reply_markup=start_btn
                 )
 
