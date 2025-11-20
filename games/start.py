@@ -23,51 +23,33 @@ START_TEXT = (
 )
 
 # ==========================================================
-# 📌 Main Menu Buttons
+# 📌 Main Menu Buttons (ONLY 2 BUTTONS — YOUR REQUIREMENT)
 # ==========================================================
 def get_start_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("👤 Profile", callback_data="open_profile")],
-        [
-            InlineKeyboardButton("🎮 Games", callback_data="games_menu"),
-            InlineKeyboardButton("🛒 Shop", callback_data="shop_menu")
-        ],
-        [
-            InlineKeyboardButton("⛏ Mine", callback_data="mine_menu"),
-            InlineKeyboardButton("📊 Top Players", callback_data="top_menu")
-        ],
-        [InlineKeyboardButton("❓ Help", callback_data="help_menu")],
+        [InlineKeyboardButton("❓ Commands", callback_data="help_menu")],
     ])
 
 # ==========================================================
-# 📌 (Optional) Submenus – they can be expanded later
+# 📌 Help Menu
 # ==========================================================
-
-def get_games_menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎲 Flip", callback_data="game_flip")],
-        [InlineKeyboardButton("🎯 Roll", callback_data="game_roll")],
-        [InlineKeyboardButton("⚔ Fight", callback_data="game_fight")],
-        [InlineKeyboardButton("🔤 Guess", callback_data="game_guess")],
-        [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")],
-    ])
-
 def get_help_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📜 Help Page", callback_data="help_show")],
-        [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")],
+        [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")]
     ])
 
 # ==========================================================
-# 📌 safe_edit function
+# 📌 Safe async message editor
 # ==========================================================
-def safe_edit(message, text, markup=None):
+async def safe_edit(message, text, markup=None):
     try:
         if markup:
-            return message.edit_text(text, reply_markup=markup)
-        return message.edit_text(text)
+            return await message.edit_text(text, reply_markup=markup)
+        return await message.edit_text(text)
     except:
-        return  # fail silently to avoid callback crashes
+        return  # silent fail
 
 # ==========================================================
 # 📌 Start Handler
@@ -93,58 +75,41 @@ def init_start(bot: Client):
                 pass
 
     # ======================================================
-    # 📌 Callback: Menu Navigation
+    # 📌 HELP MENU callback
     # ======================================================
-    @bot.on_callback_query(filters.regex("^games_menu$"))
-    async def games_menu(_, q):
-        try:
-            safe_edit(q.message, "🎮 **Game Menu**", get_games_menu())
-            await q.answer()
-        except Exception:
-            traceback.print_exc()
-
     @bot.on_callback_query(filters.regex("^help_menu$"))
-    async def help_menu(_, q):
+    async def cb_help(_, q):
         try:
-            safe_edit(q.message, "❓ **Help Menu**", get_help_menu())
+            await safe_edit(q.message, "❓ **Help Menu**", get_help_menu())
             await q.answer()
         except Exception:
             traceback.print_exc()
 
-    @bot.on_callback_query(filters.regex("^mine_menu$"))
-    async def mine_menu(_, q):
+    # ======================================================
+    # 📌 BACK TO HOME
+    # ======================================================
+    @bot.on_callback_query(filters.regex("^back_to_home$"))
+    async def back_home(_, q):
         try:
-            text = (
-                "⛏ **Mining Menu**\n\n"
-                "Use /mine to gather ores.\n"
-                "Sell your ores by clicking buttons after mining.\n"
+            await safe_edit(
+                q.message,
+                START_TEXT.format(name=q.from_user.first_name),
+                get_start_menu()
             )
-            kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")]
-            ])
-            safe_edit(q.message, text, kb)
             await q.answer()
         except Exception:
             traceback.print_exc()
 
-    @bot.on_callback_query(filters.regex("^top_menu$"))
-    async def top_menu(_, q):
-        try:
-            safe_edit(q.message, "📊 *Top Players coming soon...*", InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")]
-            ]))
-            await q.answer()
-        except Exception:
-            traceback.print_exc()
-
+    # ======================================================
+    # 📌 HELP SHOW PAGE
+    # ======================================================
     @bot.on_callback_query(filters.regex("^help_show$"))
     async def help_show(_, q):
         try:
-            safe_edit(
-                q.message,
-                "ℹ️ Use /help to see all available commands.",
-                InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="help_menu")]])
-            )
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="help_menu")]
+            ])
+            await safe_edit(q.message, "ℹ️ Use /help to see all available commands.", kb)
             await q.answer()
         except Exception:
             traceback.print_exc()
