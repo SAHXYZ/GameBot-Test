@@ -1,27 +1,18 @@
 from pyrogram import Client, filters
+from pyrogram.types import Message
 
 def init_help(bot: Client):
-
     @bot.on_message(filters.command("help"))
-    async def help_cmd(_, msg):
+    async def help_cmd(_, msg: Message):
 
         text = (
             "🎮 **GameBot Help Menu**\n\n"
-            
+
             "📌 **General Commands**\n"
             "/start - Main menu\n"
             "/help - Help menu\n"
-            "/profile - Your stats\n"
-            "/leaderboard - Top players\n\n"
-
-            "⛏️ **Mining System**\n"
-            "/mine - Mine ores\n"
-            "/sell - Sell ores\n"
-            "/tools - View tools\n"
-            "/equip <tool> - Equip tool\n"
-            "/repair - Repair tool\n\n"
-
-            "💰 **Economy**\n"
+            "/profile - Show your profile\n"
+            "/inv - Show inventory\n"
             "/work - Earn bronze\n"
             "/shop - Buy items\n"
             "/buy <item> - Purchase item\n"
@@ -35,4 +26,5 @@ def init_help(bot: Client):
             "/guess - Word guessing game\n"
         )
 
+        # use reply so user gets inline reply in private/group
         await msg.reply(text)
