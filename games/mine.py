@@ -4,7 +4,6 @@ from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 import random
 import time
 
-
 # -------------------------------------
 # DATABASE
 # -------------------------------------
@@ -38,7 +37,6 @@ TOOLS = {
     "Diamond": {"power": 7, "durability": 350, "price": 8000},
     "Emerald": {"power": 9, "durability": 450, "price": 20000},
 }
-
 
 # -------------------------------------
 # ORES
@@ -124,12 +122,12 @@ def mine_action(uid):
 # -------------------------------------
 # HANDLERS
 # -------------------------------------
-def _mine(_, message: Message):
+def _mine(client, message: Message):
     res = mine_action(message.from_user.id)
     message.reply_text(res["message"])
 
 
-def _sell_menu(_, message: Message):
+def _sell_menu(client, message: Message):
     keyboard, row = [], []
     for ore in ORES:
         row.append(InlineKeyboardButton(ore["name"], callback_data=f"sell_{ore['name']}"))
@@ -142,7 +140,7 @@ def _sell_menu(_, message: Message):
     message.reply_text("🛒 **Choose an ore to sell:**", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-def _sell_handler(_, query: CallbackQuery):
+def _sell_handler(client, query: CallbackQuery):
     name = query.data.replace("sell_", "")
     user = ensure_user(get_user(query.from_user.id))
     ores = user["inventory"]["ores"]
