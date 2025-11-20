@@ -3,6 +3,10 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from database.mongo import users
 from utils.coins import total_bronze_value
 
+
+# -----------------------------
+# Keyboards
+# -----------------------------
 def leaderboard_menu():
     return InlineKeyboardMarkup(
         [
@@ -13,29 +17,50 @@ def leaderboard_menu():
         ]
     )
 
-def back_button():
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("⬅️ Back", callback_data="lb_back")]]
-    )
 
+def back_button():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="lb_back")]])
+
+
+# -----------------------------
+# INIT
+# -----------------------------
 def init_top(bot: Client):
 
     @bot.on_message(filters.command("leaderboard"))
     async def show_menu(_, msg: Message):
         await msg.reply("📊 **Choose a leaderboard:**", reply_markup=leaderboard_menu())
 
+    # -----------------------------
+    # TOP BY WEALTH
+    # -----------------------------
     @bot.on_callback_query(filters.regex("^top_coins$"))
     async def top_coins(client, cq: CallbackQuery):
 
+        await cq.answer()
+
+        # Fetch all users safely
         all_users = list(users.find({}))
+
         ranked = []
         for u in all_users:
-            total = total_bronze_value(u)
-            ranked.append((u["_id"], total, u))
+            try:
+                total = total_bronze_value(u)
+                ranked.append((u["_id"], total, u))
+            except:
+                continue
 
         ranked = sorted(ranked, key=lambda x: x[1], reverse=True)[:10]
+
+        if not ranked:
+            return await cq.message.edit(
+                "❗ No users found in leaderboard.",
+                reply_markup=back_button()
+            )
+
         text = "🏆 **Top Wealth Leaderboard**\n\n"
         rank = 1
+
         for uid, total, data in ranked:
             try:
                 tg_user = await client.get_users(int(uid))
@@ -55,20 +80,32 @@ def init_top(bot: Client):
             rank += 1
 
         await cq.message.edit(text, reply_markup=back_button())
-        await cq.answer()
 
+    # -----------------------------
+    # TOP BY MESSAGES
+    # -----------------------------
     @bot.on_callback_query(filters.regex("^top_msgs$"))
     async def top_msgs(client, cq: CallbackQuery):
+
+        await cq.answer()
 
         pipeline = [
             {"$project": {"messages": 1}},
             {"$sort": {"messages": -1}},
-            {"$limit": 10}
+            {"$limit": 10},
         ]
+
         top_list = list(users.aggregate(pipeline))
+
+        if not top_list:
+            return await cq.message.edit(
+                "❗ No message data available.",
+                reply_markup=back_button()
+            )
 
         text = "💬 **Top Message Senders**\n\n"
         rank = 1
+
         for entry in top_list:
             uid = entry["_id"]
             msgs = entry.get("messages", 0)
@@ -82,9 +119,14 @@ def init_top(bot: Client):
             rank += 1
 
         await cq.message.edit(text, reply_markup=back_button())
-        await cq.answer()
 
+    # -----------------------------
+    # BACK BUTTON
+    # -----------------------------
     @bot.on_callback_query(filters.regex("^lb_back$"))
     async def leaderboard_back(_, cq: CallbackQuery):
-        await cq.message.edit("📊 **Choose a leaderboard:**", reply_markup=leaderboard_menu())
         await cq.answer()
+        await cq.message.edit(
+            "📊 **Choose a leaderboard:**",
+            reply_markup=leaderboard_menu()
+        )
