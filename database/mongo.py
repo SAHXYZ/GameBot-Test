@@ -52,20 +52,18 @@ def get_user(user_id):
     user_id = str(user_id)
     user = users.find_one({"_id": user_id})
 
-    # Create new user
+    # Create new user if not exists
     if not user:
         new_user = {"_id": user_id}
         new_user.update(DEFAULT_USER)
         users.insert_one(new_user)
         return new_user
 
-    # Fix existing user
+    # Fix existing user if structure changed
     updated = False
     fixed_user = {"_id": user_id}
 
     for key, default_value in DEFAULT_USER.items():
-
-        # If key missing → use default
         if key not in user:
             fixed_user[key] = default_value
             updated = True
@@ -73,7 +71,7 @@ def get_user(user_id):
 
         value = user[key]
 
-        # Deep-fix inventory
+        # Deep fix for inventory
         if key == "inventory":
             if not isinstance(value, dict):
                 value = {"ores": {}, "items": []}
@@ -85,14 +83,31 @@ def get_user(user_id):
             fixed_user[key] = value
             continue
 
-        # Copy as-is for other fields
         fixed_user[key] = value
 
-    # Update DB if any fixes applied
+    # Save if modified
     if updated:
         users.update_one({"_id": user_id}, {"$set": fixed_user})
 
     return fixed_user
+
+
+# -------------------------------------------------
+# CREATE USER IF NOT EXISTS (MISSING BEFORE)
+# -------------------------------------------------
+def create_user_if_not_exists(user_id, name):
+    user_id = str(user_id)
+    user = users.find_one({"_id": user_id})
+
+    if user:
+        return user
+
+    new_user = {"_id": user_id}
+    new_user.update(DEFAULT_USER)
+    new_user["name"] = name  # store username / first name
+
+    users.insert_one(new_user)
+    return new_user
 
 
 # -------------------------------------------------
