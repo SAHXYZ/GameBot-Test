@@ -74,7 +74,7 @@ def safe_edit(message, text, markup=None):
 # ==========================================================
 def init_start(bot: Client):
 
-    @bot.on_message(filters.command("start") & ~filters.edited)
+    @bot.on_message(filters.command("start"))
     async def start_cmd(_, msg: Message):
         try:
             # Ensure user exists

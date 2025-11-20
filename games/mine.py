@@ -37,7 +37,7 @@ def choose_ore():
 def init_mine(bot: Client):
 
     # ⛏️ /mine command
-    @bot.on_message(filters.command("mine") & ~filters.edited)
+    @bot.on_message(filters.command("mine"))
     async def mine_cmd(_, msg: Message):
         try:
             user = get_user(msg.from_user.id)

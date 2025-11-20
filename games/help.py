@@ -9,7 +9,7 @@ def init_help(bot: Client):
     Keeps the handler simple, defensive, and safe for both private chats and groups.
     """
 
-    @bot.on_message(filters.command(["help", "commands"]) & ~filters.edited)
+    @bot.on_message(filters.command(["help", "commands"]))
     async def help_cmd(_, msg: Message):
         try:
             text = (
