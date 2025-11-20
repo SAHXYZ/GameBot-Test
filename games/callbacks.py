@@ -6,7 +6,6 @@ from games.profile import build_profile_text_for_user, get_profile_markup
 
 
 def safe_edit(message, text, markup=None):
-    """Safely edit a message without throwing errors."""
     try:
         if markup:
             return message.edit(text, reply_markup=markup)
@@ -17,11 +16,10 @@ def safe_edit(message, text, markup=None):
 
 def init_callbacks(bot: Client):
 
-    # ==========================================================
-    #  🔹 HANDLERS TRIGGERED FROM /start (new callback system)
-    # ==========================================================
+    # ===============================
+    # /start MENU CALLBACKS
+    # ===============================
 
-    # ----- Show Commands (start.py version) -----
     @bot.on_callback_query(filters.regex("^start_cmds$"))
     async def cb_start_cmds(_, q: CallbackQuery):
 
@@ -58,7 +56,6 @@ def init_callbacks(bot: Client):
         await q.answer()
 
 
-    # ----- Show Profile (start.py version) -----
     @bot.on_callback_query(filters.regex("^start_profile$"))
     async def cb_start_profile(_, q: CallbackQuery):
 
@@ -83,9 +80,9 @@ def init_callbacks(bot: Client):
         await q.answer()
 
 
-    # ----- Back to /start -----
     @bot.on_callback_query(filters.regex("^start_back$"))
     async def cb_start_back(_, q: CallbackQuery):
+
         safe_edit(
             q.message,
             START_TEXT.format(name=q.from_user.first_name),
@@ -94,11 +91,10 @@ def init_callbacks(bot: Client):
         await q.answer()
 
 
-    # ====================================================================
-    #  🔹 BACKWARD COMPATIBILITY (old buttons from other modules)
-    # ====================================================================
+    # ============================================
+    # LEGACY FALLBACK (FOR OLD MODULE BUTTONS)
+    # ============================================
 
-    # ----- Old: show_commands -----
     @bot.on_callback_query(filters.regex("^show_commands$"))
     async def cb_old_commands(_, q: CallbackQuery):
 
@@ -121,17 +117,16 @@ def init_callbacks(bot: Client):
         await q.answer()
 
 
-    # ----- Old: show_profile -----
     @bot.on_callback_query(filters.regex("^show_profile$"))
     async def cb_old_profile(_, q: CallbackQuery):
 
         user = get_user(q.from_user.id)
         text = build_profile_text_for_user(user, q.from_user.mention)
+
         safe_edit(q.message, text, get_profile_markup())
         await q.answer()
 
 
-    # ----- Old: Back to Home -----
     @bot.on_callback_query(filters.regex("^back_to_home$"))
     async def cb_back_home(_, q: CallbackQuery):
 
