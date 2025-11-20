@@ -35,14 +35,14 @@ required_modules = [
 
 optional_modules = [
     "profile", "work", "shop",
-    "guess", "help"
+    "guess", "help", "mine"   # ← Added for mining system
 ]
 
 if __name__ == "__main__":
-    print("Initializing GameBot...")
+    print("Initializing GameBot...\n")
 
     for module in required_modules + optional_modules:
         safe_init(module)
 
-    print("✔ GameBot is running with MongoDB!")
+    print("\n✔ GameBot is running with MongoDB!")
     bot.run()
