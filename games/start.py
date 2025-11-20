@@ -17,7 +17,6 @@ START_TEXT = (
     "◆ ᴘᴏᴡᴇʀᴇᴅ ʙʏ @PrimordialEmperor ◆"
 )
 
-
 def get_start_menu():
     return InlineKeyboardMarkup(
         [
@@ -28,31 +27,52 @@ def get_start_menu():
         ]
     )
 
-
 def init_start(bot: Client):
 
-    # --------------------------------
-    # /start
-    # --------------------------------
+    # ---------------------------------------------------
+    # /start in PRIVATE
+    # Also handles redirected /start help from group
+    # ---------------------------------------------------
     @bot.on_message(filters.command("start") & filters.private)
-    async def start_handler(_, msg: Message):
+    async def start_private(_, msg: Message):
 
-        if not msg.from_user:
+        user = msg.from_user
+        if not user:
             return
 
-        user_id = msg.from_user.id
-        get_user(user_id)   # ensure user exists
+        # Handle redirect: /start help
+        args = msg.text.split(maxsplit=1)
+        if len(args) > 1 and args[1] == "help":
+            from games.help import _help
+            return _help(_, msg)
+
+        # Normal start behavior
+        get_user(user.id)  # ensure DB entry
 
         await msg.reply(
-            START_TEXT.format(name=msg.from_user.first_name),
+            START_TEXT.format(name=user.first_name),
             reply_markup=get_start_menu()
         )
 
-    # --------------------------------
-    # Callback: Commands Menu
-    # --------------------------------
+    # ---------------------------------------------------
+    # /start in GROUP — show start text directly
+    # ---------------------------------------------------
+    @bot.on_message(filters.command("start") & ~filters.private)
+    async def start_group(_, msg: Message):
+        user = msg.from_user
+        if not user:
+            return
+
+        await msg.reply(
+            START_TEXT.format(name=user.first_name),
+            reply_markup=get_start_menu()
+        )
+
+    # ---------------------------------------------------
+    # Callback: Commands menu
+    # ---------------------------------------------------
     @bot.on_callback_query(filters.regex("^start_cmds$"))
-    async def show_commands(_, q: CallbackQuery):
+    async def start_commands(_, q: CallbackQuery):
 
         await q.message.edit_text(
             "🕹 **Commands Menu**\n\n"
@@ -81,11 +101,11 @@ def init_start(bot: Client):
         )
         await q.answer()
 
-    # --------------------------------
-    # Callback: Profile Summary
-    # --------------------------------
+    # ---------------------------------------------------
+    # Callback: Profile summary
+    # ---------------------------------------------------
     @bot.on_callback_query(filters.regex("^start_profile$"))
-    async def show_profile(_, q: CallbackQuery):
+    async def start_profile(_, q: CallbackQuery):
 
         user = get_user(q.from_user.id)
 
@@ -105,11 +125,11 @@ def init_start(bot: Client):
         )
         await q.answer()
 
-    # --------------------------------
-    # Callback: Back → Main Menu
-    # --------------------------------
+    # ---------------------------------------------------
+    # Callback: Back → main menu
+    # ---------------------------------------------------
     @bot.on_callback_query(filters.regex("^start_back$"))
-    async def go_back(_, q: CallbackQuery):
+    async def start_back(_, q: CallbackQuery):
 
         await q.message.edit_text(
             START_TEXT.format(name=q.from_user.first_name),
