@@ -97,14 +97,14 @@ def init_start(bot: Client):
             # ======================================================
             start_btn = InlineKeyboardMarkup([
                 [InlineKeyboardButton(
-                    "Start",
+                    "Start Here",
                     url=f"https://t.me/{bot_me.username}?start=menu"
                 )]
             ])
 
             await msg.reply(
-                f"Hello {msg.from_user.first_name}, I’m a Gaming Bot!\n"
-                "But Even I Am Not Aware Of All My Features Yet.\n\n"
+                f"Hello {msg.from_user.first_name}, \nI’m a Gaming Bot!\n\n"
+                "But Even I Am Not Aware Of All My Features Yet."
                 "Will You Help Me Discover Them? 👇",
                 reply_markup=start_btn
             )
