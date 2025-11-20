@@ -15,19 +15,20 @@ def init_equip(bot: Client):
             if not user:
                 return await msg.reply("❌ Use /start first.")
 
-            inventory = user.setdefault("inventory", {})
-            owned = inventory.get("tools", [])
+            inv = user.setdefault("inventory", {})
+            owned = inv.get("tools", [])
 
             if not owned:
                 return await msg.reply("❌ You don't own any tools.")
 
+            # buttons for each tool
             buttons = [
                 [InlineKeyboardButton(tool, callback_data=f"equip_tool:{tool}")]
                 for tool in owned
                 if tool in TOOLS
             ]
 
-            return await msg.reply(
+            await msg.reply(
                 "🔧 **Choose a tool to equip:**",
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
@@ -37,7 +38,7 @@ def init_equip(bot: Client):
             await msg.reply("⚠️ Error.")
 
     @bot.on_callback_query(filters.regex(r"^equip_tool:"))
-    async def equip_tool(_, cq: CallbackQuery):
+    async def cb_equip_tool(_, cq: CallbackQuery):
         try:
             tool = cq.data.split(":")[1]
 
@@ -45,16 +46,17 @@ def init_equip(bot: Client):
             if not user:
                 return await cq.answer("❌ Profile not found.")
 
-            inventory = user.setdefault("inventory", {})
-            owned = inventory.get("tools", [])
+            inv = user.setdefault("inventory", {})
+            owned = inv.get("tools", [])
 
             if tool not in owned:
                 return await cq.answer("❌ You don't own this tool.")
 
+            # Equip tool
             user["equipped"] = tool
             update_user(cq.from_user.id, user)
 
-            await cq.message.edit_text(f"✅ Equipped **{tool}**!")
+            await cq.message.edit_text(f"✅ Equipped **{tool}** successfully!")
             await cq.answer()
 
         except Exception:
