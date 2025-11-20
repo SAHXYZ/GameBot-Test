@@ -27,6 +27,7 @@ ORES = [
 
 MINE_COOLDOWN = 5
 
+
 def weighted_choice(opts):
     total = sum(o["weight"] for o in opts)
     pick = random.uniform(0, total)
@@ -36,6 +37,7 @@ def weighted_choice(opts):
             return o
         cur += o["weight"]
     return opts[-1]
+
 
 def ensure_user(u):
     u.setdefault("bronze", 0)
@@ -47,6 +49,7 @@ def ensure_user(u):
     inv.setdefault("items", [])
     u.setdefault("last_mine", 0)
     return u
+
 
 def mine_action(uid):
     user = ensure_user(get_user(uid))
@@ -68,8 +71,9 @@ def mine_action(uid):
 
     amount = 1 + random.choice([0, 1, 2]) + (TOOLS[eq]["power"] // 3)
 
-    user["inventory"]["ores"][chosen["name"]] = \
+    user["inventory"]["ores"][chosen["name"]] = (
         user["inventory"]["ores"].get(chosen["name"], 0) + amount
+    )
 
     user["tool_durabilities"][eq] = max(0, dur - random.randint(1, 4))
     user["last_mine"] = now
@@ -78,8 +82,9 @@ def mine_action(uid):
 
     return {
         "success": True,
-        "message": f"⛏️ You mined **{amount}× {chosen['name']}**!\n🪵 Durability: {user['tool_durabilities'][eq]}"
+        "message": f"⛏️ You mined **{amount}× {chosen['name']}**!\n🪵 Durability: {user['tool_durabilities'][eq]}",
     }
+
 
 def init_mine(bot: Client):
 
@@ -93,19 +98,21 @@ def init_mine(bot: Client):
         kb = []
         row = []
         for o in ORES:
-            row.append(InlineKeyboardButton(o["name"], callback_data=f"sell_{o['name']}"))
+            row.append(
+                InlineKeyboardButton(o["name"], callback_data=f"sell_{o['name']}")
+            )
             if len(row) == 2:
                 kb.append(row)
                 row = []
         if row:
             kb.append(row)
 
-        await msg.reply("🛒 Select ore to sell:", reply_markup=InlineKeyboardMarkup(kb))
+        await msg.reply(
+            "🛒 Select ore to sell:", reply_markup=InlineKeyboardMarkup(kb)
+        )
 
-    @bot.on_callback_query()
+    @bot.on_callback_query(filters.regex("^sell_"))
     async def sell_callback(_, cq: CallbackQuery):
-        if not cq.data.startswith("sell_"):
-            return
 
         ore = cq.data.replace("sell_", "")
         user = ensure_user(get_user(cq.from_user.id))
@@ -122,5 +129,7 @@ def init_mine(bot: Client):
 
         update_user(cq.from_user.id, user)
 
-        await cq.message.edit(f"🛒 Sold **{amount}× {ore}** for **{gained} Bronze 🥉**!")
+        await cq.message.edit(
+            f"🛒 Sold **{amount}× {ore}** for **{gained} Bronze 🥉**!"
+        )
         await cq.answer()
