@@ -14,10 +14,10 @@ from database.mongo import get_user, update_user
 # SHOP DATA
 # ---------------------------------------
 ITEMS = [
-    ("Lucky Charm 🍀", 200),
-    ("Golden Key 🔑", 350),
-    ("Magic Potion 🧪", 500),
-    ("Royal Crown 👑", 900),
+    ("Lucky Charm", 200),
+    ("Golden Key", 350),
+    ("Magic Potion", 500),
+    ("Royal Crown", 900),
 ]
 
 TOOLS = [
