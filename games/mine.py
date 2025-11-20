@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 import random
 import time
 
@@ -20,13 +21,13 @@ except Exception:
         pass
 
 TOOLS = {
-    "Wooden": {"power": 1, "durability": 50, "tier": "Common", "price": 50},
-    "Stone": {"power": 2, "durability": 100, "tier": "Common", "price": 150},
-    "Iron": {"power": 3, "durability": 150, "tier": "Uncommon", "price": 400},
-    "Gold": {"power": 4, "durability": 200, "tier": "Rare", "price": 1200},
-    "Platinum": {"power": 5, "durability": 275, "tier": "Rare", "price": 3000},
-    "Diamond": {"power": 7, "durability": 350, "tier": "Epic", "price": 8000},
-    "Emerald": {"power": 9, "durability": 450, "tier": "Legendary", "price": 20000},
+    "Wooden": {"power": 1, "durability": 50, "price": 50},
+    "Stone": {"power": 2, "durability": 100, "price": 150},
+    "Iron": {"power": 3, "durability": 150, "price": 400},
+    "Gold": {"power": 4, "durability": 200, "price": 1200},
+    "Platinum": {"power": 5, "durability": 275, "price": 3000},
+    "Diamond": {"power": 7, "durability": 350, "price": 8000},
+    "Emerald": {"power": 9, "durability": 450, "price": 20000},
 }
 
 ORES = [
@@ -55,20 +56,20 @@ def weighted_choice(options):
     return options[-1]
 
 
-def ensure_user(user):
-    user.setdefault("bronze", 0)
-    user.setdefault("tools", {})
-    user.setdefault("equipped", None)
-    user.setdefault("tool_durabilities", {})
-    inv = user.setdefault("inventory", {})
+def ensure_user(u):
+    u.setdefault("bronze", 0)
+    u.setdefault("tools", {})
+    u.setdefault("equipped", None)
+    u.setdefault("tool_durabilities", {})
+    inv = u.setdefault("inventory", {})
     inv.setdefault("ores", {})
     inv.setdefault("items", [])
-    user.setdefault("last_mine", 0)
-    return user
+    u.setdefault("last_mine", 0)
+    return u
 
 
-def mine_action(user_id):
-    user = ensure_user(get_user(user_id))
+def mine_action(uid):
+    user = ensure_user(get_user(uid))
     now = time.time()
 
     if now - user["last_mine"] < MINE_COOLDOWN:
@@ -91,7 +92,8 @@ def mine_action(user_id):
 
     user["tool_durabilities"][eq] = max(0, dur - random.randint(1, 4))
     user["last_mine"] = now
-    update_user(user_id, user)
+
+    update_user(uid, user)
 
     return {
         "success": True,
@@ -99,14 +101,13 @@ def mine_action(user_id):
     }
 
 
-def _mine(c: Client, m: Message):
+def _mine(c, m: Message):
     res = mine_action(m.from_user.id)
     m.reply_text(res["message"])
 
 
-def _sell_menu(c: Client, m: Message):
-    keyboard = []
-    row = []
+def _sell_menu(c, m: Message):
+    keyboard, row = [], []
     for ore in ORES:
         row.append(InlineKeyboardButton(ore["name"], callback_data=f"sell_{ore['name']}") )
         if len(row) == 2:
@@ -115,34 +116,31 @@ def _sell_menu(c: Client, m: Message):
     if row:
         keyboard.append(row)
 
-    m.reply_text(
-        "🛒 **Choose an ore to sell:**",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    m.reply_text("🛒 **Choose an ore to sell:**", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-def _sell_handler(c: Client, q: CallbackQuery):
-    ore_name = q.data.replace("sell_", "")
+def _sell_handler(c, q: CallbackQuery):
+    name = q.data.replace("sell_", "")
     user = ensure_user(get_user(q.from_user.id))
     ores = user["inventory"]["ores"]
 
-    if ore_name not in ores or ores[ore_name] <= 0:
+    if name not in ores or ores[name] <= 0:
         return q.answer("❌ You don't have this ore.", show_alert=True)
 
-    amount = ores[ore_name]
-    price = next(o for o in ORES if o["name"] == ore_name)["value"]
+    amount = ores[name]
+    price = next(o for o in ORES if o["name"] == name)["value"]
     gained = amount * price
 
     user["bronze"] += gained
-    del ores[ore_name]
+    del ores[name]
     update_user(q.from_user.id, user)
 
-    q.message.edit_text(f"🛒 Sold **{amount}x {ore_name}** for **{gained} Bronze 🥉**!")
+    q.message.edit_text(f"🛒 Sold **{amount}x {name}** for **{gained} Bronze 🥉**!")
     q.answer()
 
 
 def init_mine(bot: Client):
-    bot.add_handler(filters.command("mine") & filters.private, _mine)
-    bot.add_handler(filters.command("sell") & filters.private, _sell_menu)
-    bot.add_handler(filters.regex(r"^sell_"), _sell_handler)
+    bot.add_handler(MessageHandler(_mine, filters.command("mine") & filters.private))
+    bot.add_handler(MessageHandler(_sell_menu, filters.command("sell") & filters.private))
+    bot.add_handler(CallbackQueryHandler(_sell_handler, filters.regex(r"^sell_")))
     print("[loaded] games.mine")
