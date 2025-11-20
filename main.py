@@ -38,14 +38,14 @@ required_modules = [
     "top",
     "help",        # <-- MOVE HELP HERE (before callbacks)
     "callbacks",   # <-- callbacks always last
-    "mine"
-]
-
-optional_modules = [
+    "mine",
     "profile",
     "work",
     "shop",
-    "guess",
+    "guess"
+]
+
+optional_modules = [
 ]
 
 if __name__ == "__main__":
