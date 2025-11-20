@@ -10,42 +10,39 @@ def init_help(bot: Client):
     async def help_cmd(_, msg: Message):
         try:
             text = (
-                "⟦⟡⟧  H E L P   C E N T E R  ⟦⟡⟧\n"
-                "Your command arsenal.\n"
-                "Mᴀꜱᴛᴇʀ ᴛʜᴇ Gʀɪᴅ. Cᴏɴᴛʀᴏʟ ᴛʜᴇ Pʟᴀʏ. ⚡\n\n"
+                "⚙️ ● <b><i>HELP CENTER</i></b>\n\n"
 
-                "▐█▌  P R O F I L E\n"
-                "• /profile — Vɪᴇᴡ Yᴏᴜʀ Pʀᴏꜰɪʟᴇ\n"
-                "▞━━━━━━━━━━━━━━━━━━━━▚\n\n"
+                "⟡ <b><i>Profile</i></b>\n"
+                "• /profile — View Your Profile\n\n"
 
-                "▐█▌  G A M E S\n"
-                "• /flip — Cᴏɪɴ Fʟɪᴘ Dᴜᴇʟ\n"
-                "• /roll — Dɪᴄᴇ Rᴏʟʟ\n"
-                "• /fight — Fɪɢʜᴛ Aɴᴏᴛʜᴇʀ Pʟᴀʏᴇʀ\n"
-                "• /rob — Rᴏʙ A Pʟᴀʏᴇʀ (Rɪꜱᴋ + Rᴇᴡᴀʀᴅ)\n"
-                "• /guess — Gᴜᴇꜱꜱ Tʜᴇ Hɪᴅᴅᴇᴅ Wᴏʀᴅ\n"
-                "▞━━━━━━━━━━━━━━━━━━━━▚\n\n"
+                "⟡ <b><i>Games</i></b>\n"
+                "• /flip — Coin Flip Duel\n"
+                "• /roll — Dice Roll\n"
+                "• /fight — Fight Another Player\n"
+                "• /rob — Rob a Player (Risk + Reward)\n"
+                "• /guess — Guess the Hidden Word\n\n"
 
-                "▐█▌  M I N I N G\n"
-                "• /mine — Mɪɴᴇ Oʀᴇꜱ\n"
-                "• /sell — Sᴇʟʟ Yᴏᴜʀ Mɪɴᴇᴅ Oʀᴇꜱ\n"
-                "▞━━━━━━━━━━━━━━━━━━━━▚\n\n"
+                "⟡ <b><i>Mining</i></b>\n"
+                "• /mine — Mine Ores\n"
+                "• /sell — Sell Your Mined Ores\n\n"
 
-                "▐█▌  S H O P\n"
-                "• /shop — Vɪᴇᴡ Sʜᴏᴘ Iᴛᴇᴍꜱ\n"
-                "• /buy <item> — Bᴜʏ Iᴛᴇᴍꜱ/Tools\n"
-                "▞━━━━━━━━━━━━━━━━━━━━▚\n\n"
+                "⟡ <b><i>Shop</i></b>\n"
+                "• /shop — View Shop Items\n"
+                "• /buy — Buy Items/Tools\n\n"
 
-                "▐█▌  O T H E R\n"
-                "• /leaderboard — Tᴏᴘ Pʟᴀʏᴇʀꜱ\n"
-                "• /work — Eᴀʀɴ Bʀᴏɴᴢᴇ Cᴏɪɴꜱ\n"
-                "▞━━━━━━━━━━━━━━━━━━━━▚\n\n"
+                "⟡ <b><i>Other</i></b>\n"
+                "• /leaderboard — Top Players\n"
+                "• /work — Earn Bronze Coins\n\n"
 
-                "⟡ Tɪᴘ: Uꜱᴇ ᴄᴏᴍᴍᴀɴᴅꜱ ɪɴ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ ꜰᴏʀ ᴘᴇᴀᴋ ᴘᴇʀꜰᴏʀᴍᴀɴᴄᴇ.\n"
-                "Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ Pʀɪᴍᴇ-ᴛɪᴇʀ Rᴇᴀʟᴍ. ⚡"
+                "⟡ <i>Tip: You Should Use These Commands In Bot's Personal Chat "
+                "For Better Performance.</i> ⚡️"
             )
 
-            await msg.reply_text(text)
+            await msg.reply_text(
+                text,
+                parse_mode="html",   # ← IMPORTANT FIX
+                disable_web_page_preview=True
+            )
 
         except Exception:
             traceback.print_exc()
