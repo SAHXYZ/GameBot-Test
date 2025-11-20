@@ -1,7 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from database.mongo import get_user, update_user
-
+from database.mongo import get_user
 
 START_TEXT = (
     "Hᴇʏ {name}\n\n"
@@ -32,47 +31,59 @@ def get_start_menu():
 
 def init_start(bot: Client):
 
-    # -------------------------
-    # /start command
-    # -------------------------
+    # --------------------------------
+    # /start
+    # --------------------------------
     @bot.on_message(filters.command("start") & filters.private)
     async def start_handler(_, msg: Message):
 
-        user = msg.from_user
-        if not user:
+        if not msg.from_user:
             return
 
-        user_id = user.id
-
-        # Ensure user exists + fix structure
-        u = get_user(user_id)
-        update_user(user_id, u)
+        user_id = msg.from_user.id
+        get_user(user_id)   # ensure user exists
 
         await msg.reply(
-            START_TEXT.format(name=user.first_name),
+            START_TEXT.format(name=msg.from_user.first_name),
             reply_markup=get_start_menu()
         )
 
-    # -------------------------
-    # Callback: Show Commands
-    # -------------------------
+    # --------------------------------
+    # Callback: Commands Menu
+    # --------------------------------
     @bot.on_callback_query(filters.regex("^start_cmds$"))
     async def show_commands(_, q: CallbackQuery):
+
         await q.message.edit_text(
             "🕹 **Commands Menu**\n\n"
-            "/help — Full command list\n"
-            "/profile — View your stats\n"
-            "/mine — Start mining ores\n"
-            "/sell — Sell your mined ores\n"
+            "📌 **General**\n"
+            "/start — Main menu\n"
+            "/help — Full help menu\n"
+            "/profile — Detailed profile\n"
+            "/leaderboard — Top players\n\n"
+            "⛏ **Mining System**\n"
+            "/mine — Mine ores\n"
+            "/sell — Sell ores\n"
+            "/tools — Your tools\n"
+            "/equip <tool> — Equip tool\n"
+            "/repair — Repair tool\n\n"
+            "💼 **Economy & Fun**\n"
             "/work — Earn bronze\n"
             "/shop — Buy items\n"
-            "\nUse /help for the full menu."
+            "/flip — Coin flip\n"
+            "/roll — Dice roll\n"
+            "/fight — Fight users\n"
+            "/rob — Attempt robbery\n"
+            "/guess — Word guessing game\n",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            )
         )
-        q.answer()
+        await q.answer()
 
-    # -------------------------
-    # Callback: Show Profile
-    # -------------------------
+    # --------------------------------
+    # Callback: Profile Summary
+    # --------------------------------
     @bot.on_callback_query(filters.regex("^start_profile$"))
     async def show_profile(_, q: CallbackQuery):
 
@@ -83,12 +94,27 @@ def init_start(bot: Client):
         ores = sum(user.get("inventory", {}).get("ores", {}).values())
 
         await q.message.edit_text(
-            f"👤 **Your Profile**\n\n"
+            f"👤 **Quick Profile**\n\n"
             f"🥉 Bronze: **{bronze}**\n"
-            f"🪨 Total Ores: **{ores}**\n"
-            f"🎒 Items: **{items}**\n"
-            f"\nUse /profile for full details."
+            f"🪨 Ores Collected: **{ores}**\n"
+            f"🎒 Items Owned: **{items}**\n\n"
+            "Use /profile for the full details.",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("⬅️ Back", callback_data="start_back")]]
+            )
         )
-        q.answer()
+        await q.answer()
+
+    # --------------------------------
+    # Callback: Back → Main Menu
+    # --------------------------------
+    @bot.on_callback_query(filters.regex("^start_back$"))
+    async def go_back(_, q: CallbackQuery):
+
+        await q.message.edit_text(
+            START_TEXT.format(name=q.from_user.first_name),
+            reply_markup=get_start_menu()
+        )
+        await q.answer()
 
     print("[loaded] games.start")
