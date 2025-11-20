@@ -37,14 +37,14 @@ required_modules = [
     "fight",
     "top",
     "help",        # <-- MOVE HELP HERE (before callbacks)
-    "callbacks",   # <-- callbacks always last
     "mine",
     "profile",
     "work",
     "shop",
     "sell",
     "equip",
-    "guess"
+    "guess",
+    "callbacks"  # <-- callbacks always last
 ]
 
 optional_modules = [
