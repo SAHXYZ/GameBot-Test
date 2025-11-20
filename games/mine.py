@@ -57,7 +57,6 @@ MINE_COOLDOWN = 5
 # --------------------
 # HELPERS
 # --------------------
-
 def weighted_choice(opts):
     total = sum(o["weight"] for o in opts)
     pick = random.uniform(0, total)
@@ -83,7 +82,6 @@ def ensure_user(u):
 # --------------------
 # MINE ACTION
 # --------------------
-
 def mine_action(uid):
     user = ensure_user(get_user(uid))
     now = time.time()
@@ -120,7 +118,6 @@ def mine_action(uid):
 # --------------------
 # COMMAND HANDLERS
 # --------------------
-
 def _mine(c, m: Message):
     res = mine_action(m.from_user.id)
     m.reply_text(res["message"])
@@ -161,9 +158,8 @@ def _sell_handler(c, q: CallbackQuery):
 # --------------------
 # INIT (LOADER)
 # --------------------
-
 def init_mine(bot: Client):
-    bot.add_handler(MessageHandler(_mine), group=0, filters=filters.command("mine") & filters.private)
-    bot.add_handler(MessageHandler(_sell_menu), group=0, filters=filters.command("sell") & filters.private)
+    bot.add_handler(MessageHandler(_mine, filters.command("mine") & filters.private), group=0)
+    bot.add_handler(MessageHandler(_sell_menu, filters.command("sell") & filters.private), group=0)
     bot.add_handler(CallbackQueryHandler(_sell_handler), group=0)
     print("[loaded] games.mine")
