@@ -1,6 +1,7 @@
 # File: GameBot/GameBot/games/start.py
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ParseMode
 import traceback
 
 from database.mongo import get_user, create_user_if_not_exists
@@ -44,7 +45,7 @@ async def safe_edit(message, text, markup=None):
         return
 
 # ==========================================================
-# 📌 Start Handler
+# 📌 Start Handler (UPDATED TO SUPPORT ?start=help)
 # ==========================================================
 def init_start(bot: Client):
 
@@ -53,10 +54,26 @@ def init_start(bot: Client):
         try:
             create_user_if_not_exists(msg.from_user.id, msg.from_user.first_name)
 
+            # Extract deep-link arguments
+            args = msg.command[1:] if len(msg.command) > 1 else []
+
+            # If user clicked the "Help & Commands" button from group
+            if args and args[0] == "help":
+                from games.help import FULL_HELP_TEXT
+
+                await msg.reply_text(
+                    FULL_HELP_TEXT,
+                    parse_mode=ParseMode.HTML,
+                    disable_web_page_preview=True
+                )
+                return
+
+            # Normal /start
             await msg.reply(
                 START_TEXT.format(name=msg.from_user.first_name),
                 reply_markup=get_start_menu()
             )
+
         except Exception:
             traceback.print_exc()
             try:
@@ -71,27 +88,27 @@ def init_start(bot: Client):
     async def help_show(_, q):
         try:
             commands_text = (
-    "⚙️ ● <b><i>HELP CENTER</i></b>\n\n"
-    "⟡ <b><i>Profile</i></b>\n"
-    "• /profile — View Your Profile\n\n"
-    "⟡ <b><i>Games</i></b>\n"
-    "• /flip — Coin Flip Duel\n"
-    "• /roll — Dice Roll\n"
-    "• /fight — Fight Another Player\n"
-    "• /rob — Rob a Player (Risk + Reward)\n"
-    "• /guess — Guess the Hidden Word\n\n"
-    "⟡ <b><i>Mining</i></b>\n"
-    "• /mine — Mine Ores\n"
-    "• /sell — Sell Your Mined Ores\n\n"
-    "⟡ <b><i>Shop</i></b>\n"
-    "• /shop — View Shop Items\n"
-    "• /buy — Buy Items/Tools\n\n"
-    "⟡ <b><i>Other</i></b>\n"
-    "• /leaderboard — Top Players\n"
-    "• /work — Earn Bronze Coins\n\n"
-    "⟡ <i>Tip: You Should Use These Commands In Bot's Personal Chat "
-    "For Better Performance.</i> ⚡️"
-)
+                "⚙️ ● <b><i>HELP CENTER</i></b>\n\n"
+                "⟡ <b><i>Profile</i></b>\n"
+                "• /profile — View Your Profile\n\n"
+                "⟡ <b><i>Games</i></b>\n"
+                "• /flip — Coin Flip Duel\n"
+                "• /roll — Dice Roll\n"
+                "• /fight — Fight Another Player\n"
+                "• /rob — Rob a Player (Risk + Reward)\n"
+                "• /guess — Guess the Hidden Word\n\n"
+                "⟡ <b><i>Mining</i></b>\n"
+                "• /mine — Mine Ores\n"
+                "• /sell — Sell Your Mined Ores\n\n"
+                "⟡ <b><i>Shop</i></b>\n"
+                "• /shop — View Shop Items\n"
+                "• /buy — Buy Items/Tools\n\n"
+                "⟡ <b><i>Other</i></b>\n"
+                "• /leaderboard — Top Players\n"
+                "• /work — Earn Bronze Coins\n\n"
+                "⟡ <i>Tip: You Should Use These Commands In Bot's Personal Chat "
+                "For Better Performance.</i> ⚡️"
+            )
 
             kb = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔙 Back", callback_data="back_to_home")]
