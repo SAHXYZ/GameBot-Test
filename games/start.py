@@ -1,5 +1,12 @@
 # File: GameBot/GameBot/games/start.py
 
+# ==========================================================
+# 🚫 FIX: Prevent duplicate loading of this module
+# ==========================================================
+if "start_already_loaded" in globals():
+    raise SystemExit
+start_already_loaded = True
+
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ParseMode
@@ -34,7 +41,6 @@ def get_start_menu():
         [InlineKeyboardButton("❓ Commands", callback_data="help_show")],
     ])
 
-
 # ==========================================================
 # 📌 Safe Editor
 # ==========================================================
@@ -45,7 +51,6 @@ async def safe_edit(message, text, markup=None):
         return await message.edit_text(text)
     except:
         return
-
 
 # ==========================================================
 # 📌 START HANDLER — Group + Private
