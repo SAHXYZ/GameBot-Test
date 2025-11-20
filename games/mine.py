@@ -1,20 +1,9 @@
+# games/mine.py
 from pyrogram import Client, filters
-from pyrogram.types import (
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    CallbackQuery
-)
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-import random
-import time
-
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+import random, time
 from database.mongo import get_user, update_user
 
-
-# -------------------------
-# CONFIG
-# -------------------------
 TOOLS = {
     "Wooden": {"power": 1, "durability": 50, "price": 50},
     "Stone": {"power": 2, "durability": 100, "price": 150},
@@ -37,139 +26,134 @@ ORES = [
     {"name": "Mythic Crystal", "min_power": 8, "weight": 1, "value": 1500},
 ]
 
-MINE_COOLDOWN = 5
+MINE_COOLDOWN = 5  # seconds
 
 
-# -------------------------
-# UTILITIES
-# -------------------------
 def weighted_choice(options):
-    total = sum(o["weight"] for o in options)
+    total = sum(max(0, o.get("weight", 0)) for o in options)
     pick = random.uniform(0, total)
-    cur = 0
+    upto = 0
     for o in options:
-        if cur + o["weight"] >= pick:
+        w = max(0, o.get("weight", 0))
+        if upto + w >= pick:
             return o
-        cur += o["weight"]
-    return options[-1]
+        upto += w
+    return options[-1] if options else None
 
 
-def ensure_user(u: dict):
-    """Ensure all required fields exist."""
-    u.setdefault("inventory", {})
-    u["inventory"].setdefault("ores", {})
-    u["inventory"].setdefault("items", [])
-
-    u.setdefault("tools", {"Wooden": 1})
-    u.setdefault("equipped", "Wooden")
-    u.setdefault("tool_durabilities", {"Wooden": 50})
-    u.setdefault("last_mine", 0)
-
-    return u
+def ensure_user_structure(user: dict):
+    if user is None:
+        return None
+    user.setdefault("bronze", 0)
+    user.setdefault("tools", {"Wooden": 1})
+    user.setdefault("equipped", "Wooden")
+    user.setdefault("tool_durabilities", {"Wooden": TOOLS["Wooden"]["durability"]})
+    user.setdefault("inventory", {"ores": {}, "items": []})
+    user.setdefault("last_mine", 0)
+    return user
 
 
-# -------------------------
-# MINE LOGIC
-# -------------------------
-def mine_action(user_id):
-    user = ensure_user(get_user(user_id))
+def do_mine_action(user_id: int):
+    user = ensure_user_structure(get_user(user_id))
     now = time.time()
 
-    if now - user["last_mine"] < MINE_COOLDOWN:
-        return {"success": False, "message": "⏳ You're mining too fast. Wait a moment."}
+    if now - user.get("last_mine", 0) < MINE_COOLDOWN:
+        wait = int(MINE_COOLDOWN - (now - user.get("last_mine", 0)))
+        return {"success": False, "message": f"⏳ Wait {wait}s before mining again."}
 
-    tool = user.get("equipped")
-    if not tool or tool not in TOOLS:
-        return {"success": False, "message": "❌ You have no valid tool equipped."}
+    equipped = user.get("equipped")
+    if not equipped or equipped not in TOOLS:
+        return {"success": False, "message": "❌ No valid tool equipped. Use /equip <ToolName> or buy from /shop."}
 
-    durability = user["tool_durabilities"].get(tool, TOOLS[tool]["durability"])
-    if durability <= 0:
-        return {"success": False, "message": f"⚠️ Your {tool} is broken. Repair it first."}
+    # ensure durability exists
+    dur_map = user.setdefault("tool_durabilities", {})
+    dur_map.setdefault(equipped, TOOLS[equipped]["durability"])
+    remaining = dur_map[equipped]
+    if remaining <= 0:
+        return {"success": False, "message": f"⚠️ Your {equipped} is broken. Repair or equip another tool."}
 
-    power = TOOLS[tool]["power"]
-    available = [o for o in ORES if power >= o["min_power"]]
+    power = TOOLS[equipped]["power"]
+    available = [o for o in ORES if power >= o.get("min_power", 0)]
+    if not available:
+        return {"success": False, "message": "This tool cannot mine anything."}
 
-    ore = weighted_choice(available)
-    amount = 1 + random.choice([0, 1, 2]) + (power // 3)
+    chosen = weighted_choice(available)
+    if not chosen:
+        return {"success": False, "message": "You dug but found nothing."}
 
-    # update inventory
-    ores = user["inventory"]["ores"]
-    ores[ore["name"]] = ores.get(ore["name"], 0) + amount
+    amount_found = 1 + random.choices([0, 1, 2], weights=[60, 30, 10])[0] + (power // 3)
 
-    # durability drop
-    user["tool_durabilities"][tool] = max(0, durability - random.randint(1, 4))
+    # update inventory (ores)
+    inv = user.setdefault("inventory", {})
+    ores = inv.setdefault("ores", {})
+    ores[chosen["name"]] = ores.get(chosen["name"], 0) + amount_found
+
+    # durability loss (stronger tools wear a bit less)
+    loss = random.randint(1, 4)
+    reduce_by = max(1, int(loss - (power // 5)))
+    dur_map[equipped] = max(0, dur_map[equipped] - reduce_by)
 
     user["last_mine"] = now
     update_user(user_id, user)
 
-    return {
-        "success": True,
-        "message": (
-            f"⛏️ You mined **{amount}x {ore['name']}** using your **{tool}**!\n"
-            f"🪵 Durability left: `{user['tool_durabilities'][tool]}`"
-        )
-    }
+    msg = f"⛏️ You mined {amount_found} x {chosen['name']} with your {equipped}!\n"
+    msg += f"🪵 Durability left: {dur_map[equipped]}"
+
+    if dur_map[equipped] <= 0:
+        msg += f"\n⚠️ Your {equipped} broke."
+
+    return {"success": True, "message": msg}
 
 
-# -------------------------
-# HANDLERS
-# -------------------------
-def mine_cmd(_, msg: Message):
-    if not msg.from_user:
-        return
-
-    result = mine_action(msg.from_user.id)
-    msg.reply_text(result["message"])
-
-
-def sell_menu(_, msg: Message):
-    buttons = []
+def build_sell_keyboard():
+    kb = []
     row = []
-
     for ore in ORES:
-        row.append(InlineKeyboardButton(ore["name"], callback_data=f"sell_{ore['name']}"))
+        name = ore["name"]
+        row.append(InlineKeyboardButton(name, callback_data=f"sell_{name}"))
         if len(row) == 2:
-            buttons.append(row)
+            kb.append(row)
             row = []
-
     if row:
-        buttons.append(row)
-
-    msg.reply(
-        "🛒 **Choose an ore to sell:**",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+        kb.append(row)
+    return InlineKeyboardMarkup(kb)
 
 
-def sell_handler(_, q: CallbackQuery):
-    ore_name = q.data.replace("sell_", "")
-    user = ensure_user(get_user(q.from_user.id))
-
-    ores = user["inventory"]["ores"]
-
-    if ore_name not in ores or ores[ore_name] <= 0:
-        return q.answer("❌ You don't have this ore.", show_alert=True)
-
-    amount = ores[ore_name]
-    value = next(o for o in ORES if o["name"] == ore_name)["value"]
-    gained = amount * value
-
-    user["bronze"] = user.get("bronze", 0) + gained
-    del ores[ore_name]
-
-    update_user(q.from_user.id, user)
-
-    q.message.edit_text(
-        f"🛒 Sold **{amount}x {ore_name}** for **{gained} Bronze 🥉**!"
-    )
-    q.answer()
-
-
-# -------------------------
-# LOADER
-# -------------------------
+# init function used by main.py loader; register handlers with decorators
 def init_mine(bot: Client):
-    bot.add_handler(MessageHandler(mine_cmd, filters.command("mine")), group=0)
-    bot.add_handler(MessageHandler(sell_menu, filters.command("sell")), group=0)
-    bot.add_handler(CallbackQueryHandler(sell_handler, filters.regex("^sell_")), group=0)
+
+    @bot.on_message(filters.command("mine"))
+    async def cmd_mine(_, msg: Message):
+        if not msg.from_user:
+            return
+        res = do_mine_action(msg.from_user.id)
+        await msg.reply(res["message"])
+
+    @bot.on_message(filters.command("sell"))
+    async def cmd_sell(_, msg: Message):
+        await msg.reply("🛒 Choose ore to sell:", reply_markup=build_sell_keyboard())
+
+    @bot.on_callback_query(filters.regex(r"^sell_"))
+    async def cb_sell(_, cq: CallbackQuery):
+        ore_name = cq.data.replace("sell_", "")
+        user = ensure_user_structure(get_user(cq.from_user.id))
+        ores = user.get("inventory", {}).get("ores", {})
+
+        if ore_name not in ores or ores[ore_name] <= 0:
+            return await cq.answer("❌ You don't have this ore.", show_alert=True)
+
+        amount = ores[ore_name]
+        ore_info = next((o for o in ORES if o["name"] == ore_name), None)
+        if ore_info is None:
+            return await cq.answer("❌ Invalid ore.", show_alert=True)
+
+        bronze_gain = amount * ore_info["value"]
+        user["bronze"] = user.get("bronze", 0) + bronze_gain
+        # remove the sold ores
+        del user["inventory"]["ores"][ore_name]
+        update_user(cq.from_user.id, user)
+
+        await cq.message.edit_text(f"🛒 Sold {amount}x {ore_name} for {bronze_gain} Bronze 🥉")
+        await cq.answer()
+
     print("[loaded] games.mine")
