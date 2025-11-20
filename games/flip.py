@@ -1,29 +1,28 @@
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from database.mongo import get_user, update_user
-from utils.cooldown import check_cooldown, update_cooldown
+from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import random
 import asyncio
-
-
-FLIP_COOLDOWN = 30  # seconds
+from database.mongo import get_user, update_user
+from utils.cooldown import check_cooldown, update_cooldown
 
 
 def init_flip(bot: Client):
 
-    # ---------------------------
-    # /flip command
-    # ---------------------------
-    @bot.on_message(filters.command("flip") & filters.private)
-    async def flip_cmd(_, msg):
-        if not msg.from_user:
+    # --------------------------------------
+    # /flip (WORKS IN GROUPS + DM)
+    # --------------------------------------
+    @bot.on_message(filters.command("flip"))
+    async def flip_cmd(_, msg: Message):
+
+        user = msg.from_user
+        if not user:
             return
 
-        user = get_user(msg.from_user.id)
+        data = get_user(user.id)
 
-        ok, wait, pretty = check_cooldown(user, "flip", FLIP_COOLDOWN)
+        ok, wait, pretty = check_cooldown(data, "flip", 30)
         if not ok:
-            return await msg.reply(f"⏳ You must wait **{pretty}** before flipping again!")
+            return await msg.reply(f"⏳ Wait **{pretty}** before flipping again.")
 
         buttons = InlineKeyboardMarkup(
             [
@@ -34,58 +33,52 @@ def init_flip(bot: Client):
             ]
         )
 
-        await msg.reply("🎮 **Choose your side:**", reply_markup=buttons)
+        await msg.reply("🪙 **Choose Heads or Tails:**", reply_markup=buttons)
 
-    # ---------------------------
-    # Flip callback
-    # ---------------------------
+    # --------------------------------------
+    # CALLBACK — flip result
+    # --------------------------------------
     @bot.on_callback_query(filters.regex(r"^flip_"))
     async def flip_result(_, cq: CallbackQuery):
+
+        user = cq.from_user
+        if not user:
+            return
+
         choice = cq.data.replace("flip_", "")
-        user_id = cq.from_user.id
+        data = get_user(user.id)
 
-        user = get_user(user_id)
-
-        ok, wait, pretty = check_cooldown(user, "flip", FLIP_COOLDOWN)
+        ok, wait, pretty = check_cooldown(data, "flip", 30)
         if not ok:
             return await cq.answer(f"⏳ Wait {pretty}!", show_alert=True)
 
         await cq.answer()
 
-        # Animation
-        anim = await cq.message.reply("🪙 Flipping coin...")
-        await asyncio.sleep(1.2)
+        # Animation message
+        anim_msg = await cq.message.reply("🪙 Flipping the coin...")
+        await asyncio.sleep(1.3)
 
         actual = random.choice(["heads", "tails"])
-        bronze = user.get("bronze", 0)
-
-        reward = random.randint(20, 70)
-        penalty = random.randint(5, 30)
+        bronze = data.get("bronze", 0)
 
         if choice == actual:
+            reward = random.randint(10, 80)
             bronze += reward
-            text = (
+            result_text = (
                 f"🎉 **You Won!**\n"
-                f"🪙 Coin was **{actual.upper()}**\n"
-                f"🥉 You earned **+{reward} Bronze**!"
+                f"🪙 Coin: **{actual.upper()}**\n"
+                f"🥉 Reward: **+{reward} Bronze**"
             )
         else:
-            bronze = max(0, bronze - penalty)
-            text = (
+            loss = random.randint(5, 35)
+            bronze = max(0, bronze - loss)
+            result_text = (
                 f"😢 **You Lost!**\n"
-                f"🪙 Coin was **{actual.upper()}**\n"
-                f"🥉 You lost **-{penalty} Bronze**."
+                f"🪙 Coin: **{actual.upper()}**\n"
+                f"🥉 Lost: **-{loss} Bronze**"
             )
 
-        # Update cooldown safely
-        cds = update_cooldown(user, "flip")
+        new_cd = update_cooldown(data, "flip")
+        update_user(user.id, {"bronze": bronze, "cooldowns": new_cd})
 
-        update_user(
-            user_id,
-            {
-                "bronze": bronze,
-                "cooldowns": cds,
-            }
-        )
-
-        await anim.edit(text)
+        await anim_msg.edit(result_text)
