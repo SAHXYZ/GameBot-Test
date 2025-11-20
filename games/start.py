@@ -1,4 +1,5 @@
 # File: GameBot/GameBot/games/start.py
+
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ParseMode
@@ -25,7 +26,7 @@ START_TEXT = (
 )
 
 # ==========================================================
-# 📌 MAIN MENU (Only 2 buttons)
+# 📌 MAIN MENU BUTTONS (shown only in DM)
 # ==========================================================
 def get_start_menu():
     return InlineKeyboardMarkup([
@@ -33,8 +34,9 @@ def get_start_menu():
         [InlineKeyboardButton("❓ Commands", callback_data="help_show")],
     ])
 
+
 # ==========================================================
-# 📌 Async safe editor
+# 📌 Safe Editor
 # ==========================================================
 async def safe_edit(message, text, markup=None):
     try:
@@ -44,8 +46,9 @@ async def safe_edit(message, text, markup=None):
     except:
         return
 
+
 # ==========================================================
-# 📌 Start Handler (UPDATED TO REMOVE BUTTONS IN GROUP)
+# 📌 START HANDLER — Group + Private
 # ==========================================================
 def init_start(bot: Client):
 
@@ -54,10 +57,9 @@ def init_start(bot: Client):
         try:
             create_user_if_not_exists(msg.from_user.id, msg.from_user.first_name)
 
-            # Extract deep-link arguments
             args = msg.command[1:] if len(msg.command) > 1 else []
 
-            # User clicked "Help & Commands" deep-link
+            # ===== Deep-link: /start help =====
             if args and args[0] == "help":
                 from games.help import FULL_HELP_TEXT
                 await msg.reply_text(
@@ -67,20 +69,29 @@ def init_start(bot: Client):
                 )
                 return
 
-            # --------- DETECT PRIVATE CHAT ----------
-            chat_type = str(msg.chat.type).lower()
-            PRIVATE = ("private" in chat_type)
+            # ===== Detect if chat is private =====
+            PRIVATE = msg.chat.type == "private"
+
+            bot_me = await _.get_me()
 
             if PRIVATE:
-                # DM → show start with buttons
+                # ===== DM → Full start text + menu =====
                 await msg.reply(
                     START_TEXT.format(name=msg.from_user.first_name),
                     reply_markup=get_start_menu()
                 )
             else:
-                # Group → remove buttons
+                # ===== GROUP → Show simple message + Start button → redirects to DM =====
+                start_btn = InlineKeyboardMarkup([
+                    [InlineKeyboardButton(
+                        "Start",
+                        url=f"https://t.me/{bot_me.username}?start=menu"
+                    )]
+                ])
+
                 await msg.reply(
-                    START_TEXT.format(name=msg.from_user.first_name)
+                    f"Hello {msg.from_user.first_name}, tap the button below to start me in DM 👇",
+                    reply_markup=start_btn
                 )
 
         except Exception:
@@ -91,7 +102,7 @@ def init_start(bot: Client):
                 pass
 
     # ======================================================
-    # 📌 FULL COMMAND LIST
+    # 📌 HELP CENTER CALLBACK
     # ======================================================
     @bot.on_callback_query(filters.regex("^help_show$"))
     async def help_show(_, q):
@@ -115,8 +126,7 @@ def init_start(bot: Client):
                 "⟡ <b><i>Other</i></b>\n"
                 "• /leaderboard — Top Players\n"
                 "• /work — Earn Bronze Coins\n\n"
-                "⟡ <i>Tip: You Should Use These Commands In Bot's Personal Chat "
-                "For Better Performance.</i> ⚡️"
+                "⟡ <i>Tip: Use commands in DM for best performance.</i> ⚡️"
             )
 
             kb = InlineKeyboardMarkup([
@@ -129,7 +139,9 @@ def init_start(bot: Client):
         except Exception:
             traceback.print_exc()
 
-    # Back button → return to start menu
+    # ======================================================
+    # 📌 BACK TO HOME (DM menu)
+    # ======================================================
     @bot.on_callback_query(filters.regex("^back_to_home$"))
     async def back_to_home(_, q):
         await safe_edit(
