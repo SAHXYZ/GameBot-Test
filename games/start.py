@@ -3,9 +3,7 @@
 # ==========================================================
 # 🚫 Prevent accidental double-loading
 # ==========================================================
-if "start_loaded" in globals():
-    raise SystemExit
-start_loaded = True
+
 
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
