@@ -77,15 +77,9 @@ def init_start(bot: Client):
             bot_me = await _.get_me()
 
             # ======================================================
-            # 📌 FIXED PRIVATE DETECTION (DM always shows full menu)
+            # 📌 PRIVATE CHAT → ONLY SHOW START_TEXT + MENU
             # ======================================================
-            is_deeplink = len(msg.command) > 1
-            PRIVATE = msg.chat.type == "private" or is_deeplink
-
-            # ======================================================
-            # 📌 PRIVATE CHAT → Show FULL ASCII START MENU
-            # ======================================================
-            if PRIVATE:
+            if msg.chat.type == "private":
                 await msg.reply(
                     START_TEXT.format(name=msg.from_user.first_name),
                     reply_markup=get_start_menu()
@@ -93,7 +87,7 @@ def init_start(bot: Client):
                 return
 
             # ======================================================
-            # 📌 GROUP CHAT → Show Short Start with Button
+            # 📌 GROUP CHAT → Short Intro + DM Start Button
             # ======================================================
             start_btn = InlineKeyboardMarkup([
                 [InlineKeyboardButton(
@@ -103,9 +97,9 @@ def init_start(bot: Client):
             ])
 
             await msg.reply(
-                f"Hello {msg.from_user.first_name}, \n"
-                "I’m a Gaming Bot!, "
-                "but even I am not aware of all my features yet. "
+                f"Hello {msg.from_user.first_name},\n"
+                "I’m a Gaming Bot!\n"
+                "But even I am not aware of all my features yet.\n"
                 "Will you help me discover them? 👇",
                 reply_markup=start_btn
             )
