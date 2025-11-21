@@ -77,9 +77,12 @@ def init_start(bot: Client):
             bot_me = await _.get_me()
 
             # ======================================================
-            # 📌 PRIVATE CHAT → ALWAYS SHOW START_TEXT + MENU
+            # 📌 BULLETPROOF PRIVATE DETECTION
             # ======================================================
-            if msg.chat.type == "private":
+            chat_type = str(msg.chat.type).lower()
+            PRIVATE = ("private" in chat_type)
+
+            if PRIVATE:
                 await msg.reply(
                     START_TEXT.format(name=msg.from_user.first_name),
                     reply_markup=get_start_menu()
