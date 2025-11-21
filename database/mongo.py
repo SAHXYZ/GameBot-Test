@@ -41,7 +41,13 @@ DEFAULT_USER = {
     "tool_durabilities": {"Wooden": 50},
     "last_mine": 0,
 
-    "badges": []
+    "badges": [],
+
+    # -----------------------------------------
+    # ⭐ DAILY LOGIN SYSTEM (NEW FIELDS)
+    # -----------------------------------------
+    "daily_streak": 0,
+    "last_daily": None,
 }
 
 
