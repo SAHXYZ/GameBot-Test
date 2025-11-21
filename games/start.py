@@ -106,7 +106,7 @@ def init_start(bot: Client):
                 f"Hello {msg.from_user.first_name}, \n"
                 "I’m a Gaming Bot!, "
                 "but even I am not aware of all my features yet. "
-                "will you help me discover them? 👇",
+                "Will you help me discover them? 👇",
                 reply_markup=start_btn
             )
 
