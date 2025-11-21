@@ -105,8 +105,8 @@ def init_start(bot: Client):
             await msg.reply(
                 f"Hello {msg.from_user.first_name}, \n"
                 "I’m a Gaming Bot!, "
-                "But Even I Am Not Aware Of All My Features Yet."
-                "Will You Help Me Discover Them? 👇",
+                "but even I am not aware of all my features yet. "
+                "will you help me discover them? 👇",
                 reply_markup=start_btn
             )
 
