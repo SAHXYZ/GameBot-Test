@@ -3,9 +3,9 @@ from pyrogram import Client
 import importlib
 import traceback
 import time
-import database.mongo  # delayed loading to prevent module import blocking
+import os
+import database.mongo  # keep it to trigger DB connection
 from config import API_ID, API_HASH, BOT_TOKEN
-
 
 bot = Client(
     "GameBot",
@@ -16,8 +16,22 @@ bot = Client(
 )
 
 
+def load_all_modules():
+    """Auto-detect and load all modules from the /games folder."""
+    games_path = os.path.join(os.path.dirname(__file__), "games")
+
+    modules = [
+        f[:-3]
+        for f in os.listdir(games_path)
+        if f.endswith(".py") and f not in ("__init__.py")
+    ]
+
+    print(f"🔍 Detecting modules in /games → {len(modules)} found")
+    return modules
+
+
 def safe_init(module_name: str):
-    """Imports and initializes modules without duplicate log prints."""
+    """Initialization manager to prevent duplicate prints & protect bot from failures."""
     try:
         mod = importlib.import_module(f"games.{module_name}")
         init_fn = getattr(mod, f"init_{module_name}", None)
@@ -33,12 +47,14 @@ def safe_init(module_name: str):
         traceback.print_exc()
         print(f"Retrying {module_name} in 1s...")
         time.sleep(1)
+
+        # retry once
         try:
             mod = importlib.import_module(f"games.{module_name}")
             init_fn = getattr(mod, f"init_{module_name}", None)
             if callable(init_fn):
                 init_fn(bot)
-                print(f"[loaded] games.{module_name}")
+                print(f"[loaded after retry] games.{module_name}")
             else:
                 print(f"[skipped after retry] games.{module_name}")
         except Exception:
@@ -46,29 +62,12 @@ def safe_init(module_name: str):
             traceback.print_exc()
 
 
-required_modules = [
-    "start",
-    "flip",
-    "roll",
-    "rob",
-    "fight",
-    "top",
-    "help",
-    "mine",
-    "profile",
-    "work",
-    "shop",
-    "sell",
-    "equip",
-    "guess",
-    "daily",
-    "callbacks"
-]
-
-
 if __name__ == "__main__":
     print("Initializing GameBot...")
-    for module in required_modules:
+
+    modules = load_all_modules()
+    for module in modules:
         safe_init(module)
+
     print("✔ GameBot is running with MongoDB!")
     bot.run()
