@@ -1,95 +1,131 @@
-# File: games/daily.py
+# File: GameBot/games/daily.py
 
 from pyrogram import Client, filters
 from pyrogram.types import Message
-import time
-import random
-
+import time, random
 from database.mongo import get_user, update_user
 
 
 DAILY_COOLDOWN = 24 * 60 * 60
-DAILY_MIN = 100
-DAILY_MAX = 300
+DAILY_MIN = 120
+DAILY_MAX = 350
+
+CRATES = [
+    ("Bronze Crate", 65),    # 65% chance
+    ("Silver Crate", 25),    # 25% chance
+    ("Gold Crate", 8),       # 8% chance
+    ("Diamond Crate", 2),    # 2% chance
+]
+
+RARE_ITEMS = [
+    "⚡ Power Token",
+    "💎 Crystal Shard",
+    "🔥 Phoenix Feather",
+    "🎯 Luck Stone",
+    "🛡 Shield of Honor"
+]
 
 
-def format_time_left(seconds: int) -> str:
-    if seconds < 0:
-        seconds = 0
+def pick_weighted(table):
+    pool = []
+    for item, weight in table:
+        pool += [item] * weight
+    return random.choice(pool)
+
+
+def format_time(seconds: int):
     h = seconds // 3600
     m = (seconds % 3600) // 60
     s = seconds % 60
-    parts = []
-    if h:
-        parts.append(f"{h}h")
-    if m:
-        parts.append(f"{m}m")
-    if s or not parts:
-        parts.append(f"{s}s")
-    return " ".join(parts)
+    res = []
+    if h: res.append(f"{h}h")
+    if m: res.append(f"{m}m")
+    if s or not res: res.append(f"{s}s")
+    return " ".join(res)
 
 
-async def claim_daily(user_id: int, reply_message: Message):
-    """Core daily logic (used by /daily and the Daily Bonus button)."""
-    user = get_user(user_id)
+async def daily_reward(uid: int, msg: Message):
+    user = get_user(uid)
+
     if not user:
-        await reply_message.reply_text("⚠️ You don't have a profile yet.\nUse /start first.")
+        await msg.reply("⚠️ No profile found. Use /start first.")
         return
 
     now = int(time.time())
-    last_daily = user.get("last_daily")
+    last = user.get("last_daily")
 
-    # cooldown check
-    if last_daily:
-        remaining = (last_daily + DAILY_COOLDOWN) - now
+    # Cooldown
+    if last:
+        remaining = (last + DAILY_COOLDOWN) - now
         if remaining > 0:
-            await reply_message.reply_text(
-                f"⏳ You already claimed today.\n"
-                f"Next reward in **{format_time_left(remaining)}**."
-            )
+            await msg.reply(f"⏳ Already claimed.\nCome back in **{format_time(remaining)}**.")
             return
 
-    # streak logic
+    # Streak
     streak = user.get("daily_streak", 0)
-    if last_daily and now - last_daily <= DAILY_COOLDOWN * 2:
+    if last and now - last <= DAILY_COOLDOWN * 2:
         streak += 1
     else:
         streak = 1
 
-    # reward
+    # Base Coins
     base = random.randint(DAILY_MIN, DAILY_MAX)
     bonus_pct = min(streak * 5, 50)
-    bonus = int(base * bonus_pct / 100)
-    total = base + bonus
+    bonus = (base * bonus_pct) // 100
+    total_coins = base + bonus
 
-    new_balance = user.get("coins", 0) + total
-    update_user(
-        user_id,
-        {
-            "coins": new_balance,
-            "last_daily": now,
-            "daily_streak": streak,
-        },
-    )
+    # Crate drop
+    crate = pick_weighted(CRATES)
 
-    await reply_message.reply_text(
+    # Rare Item chance (increases with streak)
+    rare_item = None
+    if random.random() < 0.05 + (streak * 0.01):  # streak boosts drop rate
+        rare_item = random.choice(RARE_ITEMS)
+
+    # Jackpot (super rare)
+    jackpot = None
+    if random.random() < 0.002:  # 0.2%
+        jackpot = random.randint(5000, 15000)
+
+    # Update database
+    updates = {
+        "coins": user.get("coins", 0) + total_coins,
+        "last_daily": now,
+        "daily_streak": streak,
+    }
+
+    # Items inventory creation
+    user.setdefault("inventory", {})
+    user["inventory"].setdefault("items", [])
+
+    if rare_item:
+        user["inventory"]["items"].append(rare_item)
+        updates["inventory"] = user["inventory"]
+
+    update_user(uid, updates)
+
+    # Response message
+    text = (
         f"🎁 **Daily Reward Claimed!**\n\n"
-        f"💰 Base reward: **{base}** coins\n"
-        f"🔥 Streak bonus: **+{bonus}** coins ({bonus_pct}%)\n"
-        f"🏦 Total gained: **{total}** coins\n\n"
-        f"📅 Streak: **{streak}** days\n"
-        f"💼 New balance: **{new_balance}** coins"
+        f"💰 Base: **{base}** coins\n"
+        f"🔥 Bonus: **+{bonus}** coins ({bonus_pct}%)\n"
+        f"🏦 Total Earned: **{total_coins}** coins\n\n"
+        f"📦 You received: **{crate}**"
     )
+
+    if rare_item:
+        text += f"\n✨ Rare Loot: **{rare_item}**"
+
+    if jackpot:
+        text += f"\n💸💥 **JACKPOT HIT!** +{jackpot} extra coins!"
+        update_user(uid, {"coins": updates["coins"] + jackpot})
+
+    text += f"\n\n📅 Streak: **{streak} days**"
+    await msg.reply(text)
 
 
 def init_daily(bot: Client):
-
     @bot.on_message(filters.command("daily"))
-    async def daily_cmd(_, msg: Message):
-        # DEBUG: this will show in Heroku logs when /daily is caught
-        print(f"[daily] command from {msg.from_user.id if msg.from_user else 'unknown'}")
-        if not msg.from_user:
-            return
-        await claim_daily(msg.from_user.id, msg)
-
+    async def _(c, m: Message):
+        await daily_reward(m.from_user.id, m)
     print("[loaded] games.daily")
