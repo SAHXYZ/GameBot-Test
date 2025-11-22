@@ -61,5 +61,9 @@ if __name__ == "__main__":
     for module in optional_modules:
         safe_init(module)
 
-    print("✔ GameBot is running with MongoDB!")
-    bot.run()
+print("✔ GameBot is running with MongoDB!")
+bot.run()
+# 🔥 Keep the bot alive forever (prevents Heroku exit)
+import time
+while True:
+    time.sleep(10)
