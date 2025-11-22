@@ -1,9 +1,10 @@
-# File: GameBot/main.py
+# File: main.py
 from pyrogram import Client
 import importlib
 import traceback
+import time
+import database.mongo  # delayed loading to prevent module import blocking
 from config import API_ID, API_HASH, BOT_TOKEN
-from database.mongo import client  # ensure MongoDB loads first
 
 bot = Client(
     "GameBot",
@@ -17,18 +18,26 @@ def safe_init(module_name: str):
     try:
         mod = importlib.import_module(f"games.{module_name}")
         init_fn = getattr(mod, f"init_{module_name}", None)
-
         if callable(init_fn):
             init_fn(bot)
             print(f"[loaded] games.{module_name}")
         else:
             print(f"[skipped] games.{module_name}")
-
     except Exception as e:
-        print(f"[ERROR] {module_name}: {e}")
+        print(f"[ERROR] loading {module_name}: {e}")
         traceback.print_exc()
+        print(f"Retrying {module_name} in 1s...")
+        time.sleep(1)
+        try:
+            mod = importlib.import_module(f"games.{module_name}")
+            init_fn = getattr(mod, f"init_{module_name}", None)
+            if callable(init_fn):
+                init_fn(bot)
+                print(f"[loaded after retry] games.{module_name}")
+        except Exception:
+            print(f"[FATAL] failed: {module_name}")
+            traceback.print_exc()
 
-# IMPORTANT: help MUST load before callbacks
 required_modules = [
     "start",
     "flip",
@@ -44,21 +53,13 @@ required_modules = [
     "sell",
     "equip",
     "guess",
-    "daily",      # ← daily handled here
+    "daily",      # <<< FIXED — daily loads correctly
     "callbacks"
-]
-
-optional_modules = [
 ]
 
 if __name__ == "__main__":
     print("Initializing GameBot...")
-
     for module in required_modules:
         safe_init(module)
-
-    for module in optional_modules:
-        safe_init(module)
-
     print("✔ GameBot is running with MongoDB!")
     bot.run()
