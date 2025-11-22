@@ -1,3 +1,4 @@
+# File: database/mongo.py
 from pymongo import MongoClient
 import os
 
@@ -43,11 +44,9 @@ DEFAULT_USER = {
 
     "badges": [],
 
-    # -----------------------------------------
-    # ⭐ DAILY LOGIN SYSTEM (NEW FIELDS)
-    # -----------------------------------------
+    # DAILY SYSTEM — must be integers (not None)
     "daily_streak": 0,
-    "last_daily": None,
+    "last_daily": 0,          # <-- FIXED
 }
 
 
@@ -77,6 +76,12 @@ def get_user(user_id):
 
         value = user[key]
 
+        # Patch for old installs — last_daily was None
+        if key == "last_daily" and (value is None):
+            fixed_user[key] = 0
+            updated = True
+            continue
+
         # Deep fix for inventory
         if key == "inventory":
             if not isinstance(value, dict):
@@ -99,7 +104,7 @@ def get_user(user_id):
 
 
 # -------------------------------------------------
-# CREATE USER IF NOT EXISTS (MISSING BEFORE)
+# CREATE USER IF NOT EXISTS
 # -------------------------------------------------
 def create_user_if_not_exists(user_id, name):
     user_id = str(user_id)
@@ -110,7 +115,7 @@ def create_user_if_not_exists(user_id, name):
 
     new_user = {"_id": user_id}
     new_user.update(DEFAULT_USER)
-    new_user["name"] = name  # store username / first name
+    new_user["name"] = name
 
     users.insert_one(new_user)
     return new_user
