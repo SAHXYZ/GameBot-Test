@@ -4,7 +4,6 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery
 import time
 import random
-
 from database.mongo import get_user, update_user
 
 
@@ -19,16 +18,14 @@ def format_time_left(seconds: int) -> str:
     h = seconds // 3600
     m = (seconds % 3600) // 60
     s = seconds % 60
-    out = []
-    if h: out.append(f"{h}h")
-    if m: out.append(f"{m}m")
-    if s or not out: out.append(f"{s}s")
-    return " ".join(out)
+    parts = []
+    if h: parts.append(f"{h}h")
+    if m: parts.append(f"{m}m")
+    if s or not parts: parts.append(f"{s}s")
+    return " ".join(parts)
 
 
-async def process_daily(bot, user_id: int, reply_target):
-    """Shared daily reward logic (used by /daily & button)"""
-
+async def give_daily(bot, user_id: int, reply_target):
     user = get_user(user_id)
     if not user:
         await reply_target.reply_text("⚠️ You don't have a profile yet.\nUse /start first.")
@@ -56,8 +53,8 @@ async def process_daily(bot, user_id: int, reply_target):
     bonus_pct = min(streak * 5, 50)
     bonus = int(base * bonus_pct / 100)
     total = base + bonus
-    new_balance = user.get("coins", 0) + total
 
+    new_balance = user.get("coins", 0) + total
     update_user(
         user_id,
         {
@@ -79,15 +76,18 @@ async def process_daily(bot, user_id: int, reply_target):
 
 def init_daily(bot: Client):
 
-    # Works for any /daily format (desktop, mobile, formatted)
-    @bot.on_message(filters.command("daily") | filters.regex(r"(?i)^[/!.]daily\b"))
-    async def daily_handler(_, message: Message):
-        await process_daily(bot, message.from_user.id, message)
+    # /daily works even if Telegram formats the text
+    @bot.on_message(
+        filters.command("daily")
+        | filters.regex(r"(?i).*[/!.]daily.*")  # catches formatted and copied commands
+    )
+    async def daily_cmd(_, msg: Message):
+        await give_daily(bot, msg.from_user.id, msg)
 
-    # Works when clicking "Daily Bonus" button
+    # callback button (Daily Bonus)
     @bot.on_callback_query(filters.regex("^open_daily$"))
-    async def daily_callback(_, q: CallbackQuery):
-        await process_daily(bot, q.from_user.id, q.message)
+    async def daily_cb(_, q: CallbackQuery):
+        await give_daily(bot, q.from_user.id, q.message)
         await q.answer()
 
     print("[loaded] games.daily")
