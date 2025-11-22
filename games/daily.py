@@ -3,6 +3,7 @@ from database.mongo import get_user, update_user
 import time
 import random
 from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 def claim_daily(user_id: int) -> str:
@@ -27,7 +28,23 @@ def claim_daily(user_id: int) -> str:
 
 def init_daily(bot: Client):
     @bot.on_message(filters.command(["daily"]) | filters.regex(r"^/daily(@\w+)?$"))
-    async def daily_cmd(_, msg):
+    async def daily_cmd(client, msg):
+        chat = msg.chat.type
+
+        # If command used in group — redirect to DM
+        if chat in ("supergroup", "group"):
+            bot_username = (await client.get_me()).username
+            text = (
+                "🕹️ **Daily Reward Available!**\n"
+                "You must claim it in my DM.\n\n"
+                "Click the button below 👇"
+            )
+            keyboard = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🎁 Claim Daily in DM", url=f"https://t.me/{bot_username}?start=daily")]]
+            )
+            return await msg.reply(text, reply_markup=keyboard)
+
+        # If used in private chat — give reward
         try:
             result = claim_daily(msg.from_user.id)
             await msg.reply(result)
