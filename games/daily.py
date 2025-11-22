@@ -27,12 +27,14 @@ def claim_daily(user_id: int) -> str:
 
 
 def init_daily(bot: Client):
-    @bot.on_message(filters.command(["daily"]) | filters.regex(r"^/daily(@\w+)?$"))
-    async def daily_cmd(client, msg):
-        chat = msg.chat.type
 
-        # If command used in group — redirect to DM
-        if chat in ("supergroup", "group"):
+    @bot.on_message(filters.command("daily", prefixes="/") | filters.regex("^/daily(@\\w+)?$"))
+    @bot.on_edited_message(filters.command("daily", prefixes="/") | filters.regex("^/daily(@\\w+)?$"))
+    async def daily_cmd(client, msg):
+        chat_type = msg.chat.type
+
+        # Group chat → send button redirecting to DM
+        if chat_type in ("supergroup", "group"):
             bot_username = (await client.get_me()).username
             text = (
                 "🕹️ **Daily Reward Available!**\n"
@@ -44,7 +46,7 @@ def init_daily(bot: Client):
             )
             return await msg.reply(text, reply_markup=keyboard)
 
-        # If used in private chat — give reward
+        # Private chat → give reward
         try:
             result = claim_daily(msg.from_user.id)
             await msg.reply(result)
