@@ -1,4 +1,5 @@
-from database import db
+# File: games/daily.py
+from database.mongo import db
 import time
 import random
 from pyrogram import Client, filters
