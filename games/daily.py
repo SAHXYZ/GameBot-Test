@@ -41,13 +41,36 @@ async def handle_daily(client, msg):
         btn = InlineKeyboardMarkup(
             [[InlineKeyboardButton("🎁 Claim Daily in DM", url=f"https://t.me/{bot_username}?start=daily")]]
         )
-        await msg.reply(
-            "🕹️ **Daily Reward Available!**\n"
+
+    @bot.on_message(filters.command(["daily", "commands"]))
+    async def help_cmd(_, msg: Message):
+        try:
+            group_daily = (
+                "🕹️ **Daily Reward Available!**\n"
             "You must claim it in my DM.\n\n"
-            "Click the button below 👇",
-            reply_markup=btn
-        )
-        return
+            "Click the button below 👇"
+            btn = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🎁 Claim Daily in DM", url=f"https://t.me/{bot_username}?start=daily")]]
+            )
+
+            me = await bot.get_me()
+            deep_link = f"https://t.me/{me.username}?start=daily"
+
+            group_kb = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("📘 Help & Commands", url=deep_link)]]
+            )
+
+            # --------- FINAL, BULLETPROOF PRIVATE DETECTION ----------
+            chat_type = str(msg.chat.type).lower()
+            PRIVATE = ("private" in chat_type)
+
+
+        except Exception:
+            traceback.print_exc()
+            try:
+                await msg.reply_text("⚠️ Failed to load daily menu.")
+            except:
+                pass
 
     # /daily command
     @bot.on_message(filters.command("daily"))
