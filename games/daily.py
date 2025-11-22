@@ -78,7 +78,7 @@ async def claim_daily_and_reply(bot, user_id, reply_target):
 def init_daily(bot: Client):
 
     # user manually types /daily
-    @bot.on_message(filters.command("daily"))
+   @bot.on_message((filters.command("daily") | filters.regex(r"(?i)^[/!.]daily\b")))
     async def daily_handler(_, message: Message):
         await claim_daily_and_reply(bot, message.from_user.id, message)
 
