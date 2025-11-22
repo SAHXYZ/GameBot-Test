@@ -62,3 +62,11 @@ def init_daily(bot: Client):       # ← EXACT NAME REQUIRED
                 await msg.reply_text("⚠️ Failed to load daily reward.")
             except:
                 pass
+                @bot.on_message(filters.command("daily"))
+async def daily_cmd(_, msg):
+    me = await bot.get_me()
+    kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("🎁 Daily Bonus", callback_data="daily_bonus")]]
+    )
+    await msg.reply_text("Tap below to claim your reward 👇", reply_markup=kb)
+
