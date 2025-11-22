@@ -72,6 +72,32 @@ def init_callbacks(bot: Client):
                 await q.answer("⚠️ Unable to load profile.")
             except:
                 pass
+                    @bot.on_callback_query(filters.regex("^open_daily$"))
+    async def cb_open_daily(_, q: CallbackQuery):
+        try:
+            # call /daily as if the user executed the command
+            await bot.send_message(q.from_user.id, "/daily")
+            await q.answer()
+        except Exception:
+            traceback.print_exc()
+            try: await q.answer("⚠️ Unable to open daily.")
+            except: pass
+
+    @bot.on_callback_query(filters.regex("^open_leaderboard$"))
+    async def cb_open_leaderboard(_, q: CallbackQuery):
+        try:
+            from games.top import leaderboard_menu  # import here to prevent circular import
+            await safe_edit(
+                q.message,
+                "📊 **Choose a leaderboard type:**",
+                leaderboard_menu()
+            )
+            await q.answer()
+        except Exception:
+            traceback.print_exc()
+            try: await q.answer("⚠️ Unable to load leaderboard.")
+            except: pass
+
 
 
 
