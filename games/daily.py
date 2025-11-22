@@ -29,32 +29,16 @@ def claim_daily(user_id: int) -> str:
     return f"🎁 You earned **{reward} coins** today!"
 
 
-def init_daily(bot: Client):       # ← EXACT NAME REQUIRED
+def init_daily(bot: Client):
+
     @bot.on_message(filters.command("daily"))
     async def daily_cmd(_, msg: Message):
         try:
-            chat_type = str(msg.chat.type).lower()
-            PRIVATE = ("private" in chat_type)
-
-            if PRIVATE:
-                user_id = msg.from_user.id
-                await msg.reply_text(claim_daily(user_id))
-                return
-
-            text = (
-                "🕹️ <b>Daily Reward Available!</b>\n"
-                "You must claim it in my DM.\n\n"
-                "Click the button below 👇"
-            )
-
             me = await bot.get_me()
-            deep_link = f"https://t.me/{me.username}?start=daily"
-
             kb = InlineKeyboardMarkup(
-                [[InlineKeyboardButton("🎁 Claim Daily in DM", url=deep_link)]]
+                [[InlineKeyboardButton("🎁 Daily Bonus", callback_data="daily_bonus")]]
             )
-
-            await msg.reply_text(text, reply_markup=kb, disable_web_page_preview=True)
+            await msg.reply_text("Tap below to claim your reward 👇", reply_markup=kb)
 
         except Exception:
             traceback.print_exc()
@@ -62,11 +46,5 @@ def init_daily(bot: Client):       # ← EXACT NAME REQUIRED
                 await msg.reply_text("⚠️ Failed to load daily reward.")
             except:
                 pass
-                @bot.on_message(filters.command("daily"))
-async def daily_cmd(_, msg):
-    me = await bot.get_me()
-    kb = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🎁 Daily Bonus", callback_data="daily_bonus")]]
-    )
-    await msg.reply_text("Tap below to claim your reward 👇", reply_markup=kb)
 
+    print("[loaded] games.daily")
