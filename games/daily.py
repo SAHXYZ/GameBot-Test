@@ -8,8 +8,10 @@ def claim_daily(user_id: int) -> str:
     user = db.get_user(user_id)
     now = int(time.time())
 
-    if now - user.get("last_daily", 0) < 86400:
-        remaining = 86400 - (now - user["last_daily"])
+    last_daily = user.get("last_daily", 0) or 0  # fail-safe fix
+
+    if now - last_daily < 86400:
+        remaining = 86400 - (now - last_daily)
         hrs = remaining // 3600
         mins = (remaining % 3600) // 60
         return f"⏳ You already claimed your daily bonus!\nTry again in **{hrs}h {mins}m**."
