@@ -24,60 +24,53 @@ def claim_daily(user_id: int) -> str:
     reward = random.randint(100, 300)
 
     # Update user
-    new_data = {
-        "coins": user.get("coins", 0) + reward,
-        "last_daily": now
-    }
-    update_user(user_id, new_data)
+    user["coins"] = user.get("coins", 0) + reward
+    user["last_daily"] = now
+    update_user(user_id, user)
 
     return f"🎁 You claimed **{reward} coins**!"
 
 
 async def handle_daily(client, msg):
-    """Unified handler used for both normal & edited messages."""
+    """Unified handler for both edited and normal messages."""
     chat_type = msg.chat.type
 
     # Group chat → send button redirecting to DM
     if chat_type in ("supergroup", "group"):
         bot_username = (await client.get_me()).username
-        text = (
+        btn = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🎁 Claim Daily in DM", url=f"https://t.me/{bot_username}?start=daily")]]
+        )
+        await msg.reply(
             "🕹️ **Daily Reward Available!**\n"
             "You must claim it in my DM.\n\n"
-            "Click the button below 👇"
+            "Click the button below 👇",
+            reply_markup=btn
         )
-
-        keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton(
-                "🎁 Claim Daily in DM",
-                url=f"https://t.me/{bot_username}?start=daily"
-            )]]
-        )
-
-        await msg.reply(text, reply_markup=keyboard)
         return
 
-    # Ensure user exists (channel posts, etc.)
+    # DM → Give reward
     if not msg.from_user:
         return await msg.reply("❌ Cannot identify user.")
 
-    # Private chat → give reward
     try:
         result = claim_daily(msg.from_user.id)
         await msg.reply(result)
-    except Exception as e:
-        print("Daily error:", e)
+    except Exception:
         await msg.reply("⚠️ Error while processing your daily reward.")
 
 
 def init_daily(bot: Client):
-    """Initializes daily command handlers."""
+    """Initialize daily handlers — safe, no double registration."""
 
-    # Handle /daily in normal messages
-    @bot.on_message(filters.command("daily", prefixes="/"))
-    async def daily_cmd_msg(client, msg):
+    # /daily command
+    @bot.on_message(filters.command("daily"))
+    async def daily_cmd_message(client, msg):
         await handle_daily(client, msg)
 
-    # Handle edited messages containing /daily
-    @bot.on_edited_message(filters.regex(r"^/daily(@[A-Za-z0-9_]+)?(\s|$)"))
+    # Edited /daily
+    @bot.on_edited_message(filters.regex(r"^/daily(@[\w_]+)?"))
     async def daily_cmd_edit(client, msg):
         await handle_daily(client, msg)
+
+    print("[loaded] games.daily")
