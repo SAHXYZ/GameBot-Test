@@ -27,8 +27,8 @@ def format_time_left(seconds: int) -> str:
 
 def init_daily(bot: Client):
 
-    # filters.bot already blocks messages from bots in older Pyrogram
-    @bot.on_message(filters.command("daily") & ~filters.bot)
+    # FINAL FIX → allow bot-generated daily calls from callback button
+    @bot.on_message(filters.command("daily"))
     async def daily_handler(_, message: Message):
         user = message.from_user
         if not user:
@@ -46,6 +46,7 @@ def init_daily(bot: Client):
         now = int(time.time())
         last_daily = db_user.get("last_daily")
 
+        # Cooldown check
         if last_daily:
             remaining = (last_daily + DAILY_COOLDOWN) - now
             if remaining > 0:
@@ -55,13 +56,14 @@ def init_daily(bot: Client):
                 )
                 return
 
+        # Streak logic
         streak = db_user.get("daily_streak", 0)
-
         if last_daily and now - last_daily <= DAILY_COOLDOWN * 2:
             streak += 1
         else:
             streak = 1
 
+        # Rewards
         base = random.randint(DAILY_MIN, DAILY_MAX)
         bonus_pct = min(streak * 5, 50)
         bonus = int(base * bonus_pct / 100)
@@ -69,6 +71,7 @@ def init_daily(bot: Client):
 
         new_balance = db_user.get("coins", 0) + total
 
+        # Save database
         update_user(
             user_id,
             {
@@ -78,6 +81,7 @@ def init_daily(bot: Client):
             },
         )
 
+        # Final reply
         await message.reply_text(
             f"🎁 **Daily Reward Claimed!**\n\n"
             f"💰 Base reward: **{base}** coins\n"
