@@ -29,12 +29,8 @@ def init_callbacks(bot: Client):
                 get_start_menu()
             )
             await q.answer()
-        except Exception:
+        except:
             traceback.print_exc()
-            try:
-                await q.answer("⚠️ Error")
-            except:
-                pass
 
     @bot.on_callback_query(filters.regex("^back_to_home$"))
     async def cb_back_home(_, q: CallbackQuery):
@@ -45,12 +41,8 @@ def init_callbacks(bot: Client):
                 get_start_menu()
             )
             await q.answer()
-        except Exception:
+        except:
             traceback.print_exc()
-            try:
-                await q.answer("⚠️ Error")
-            except:
-                pass
 
     @bot.on_callback_query(filters.regex("^open_profile$"))
     async def cb_open_profile(_, q: CallbackQuery):
@@ -66,19 +58,17 @@ def init_callbacks(bot: Client):
 
             await safe_edit(q.message, text, markup)
             await q.answer()
-        except Exception:
+        except:
             traceback.print_exc()
-            try:
-                await q.answer("⚠️ Unable to load profile.")
-            except:
-                pass
-                    @bot.on_callback_query(filters.regex("^open_daily$"))
+            try: await q.answer("⚠️ Unable to load profile.")
+            except: pass
+
+    @bot.on_callback_query(filters.regex("^open_daily$"))
     async def cb_open_daily(_, q: CallbackQuery):
         try:
-            # call /daily as if the user executed the command
             await bot.send_message(q.from_user.id, "/daily")
             await q.answer()
-        except Exception:
+        except:
             traceback.print_exc()
             try: await q.answer("⚠️ Unable to open daily.")
             except: pass
@@ -86,19 +76,16 @@ def init_callbacks(bot: Client):
     @bot.on_callback_query(filters.regex("^open_leaderboard$"))
     async def cb_open_leaderboard(_, q: CallbackQuery):
         try:
-            from games.top import leaderboard_menu  # import here to prevent circular import
+            from games.top import leaderboard_menu
             await safe_edit(
                 q.message,
                 "📊 **Choose a leaderboard type:**",
                 leaderboard_menu()
             )
             await q.answer()
-        except Exception:
+        except:
             traceback.print_exc()
             try: await q.answer("⚠️ Unable to load leaderboard.")
             except: pass
-
-
-
 
     print("[loaded] games.callbacks")
