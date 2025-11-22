@@ -1,4 +1,4 @@
-# File: GameBot/games/daily.py
+# File: games/daily.py
 
 from pyrogram import Client, filters
 from pyrogram.types import Message
@@ -30,11 +30,7 @@ def format_time_left(seconds: int) -> str:
 
 
 async def claim_daily(user_id: int, reply_message: Message):
-    """
-    Core daily logic, shared by:
-      - /daily command
-      - Daily Bonus button callback
-    """
+    """Core daily logic (used by /daily and the Daily Bonus button)."""
     user = get_user(user_id)
     if not user:
         await reply_message.reply_text("⚠️ You don't have a profile yet.\nUse /start first.")
@@ -43,7 +39,7 @@ async def claim_daily(user_id: int, reply_message: Message):
     now = int(time.time())
     last_daily = user.get("last_daily")
 
-    # Cooldown
+    # cooldown check
     if last_daily:
         remaining = (last_daily + DAILY_COOLDOWN) - now
         if remaining > 0:
@@ -53,20 +49,20 @@ async def claim_daily(user_id: int, reply_message: Message):
             )
             return
 
-    # Streak
+    # streak logic
     streak = user.get("daily_streak", 0)
     if last_daily and now - last_daily <= DAILY_COOLDOWN * 2:
         streak += 1
     else:
         streak = 1
 
-    # Reward
+    # reward
     base = random.randint(DAILY_MIN, DAILY_MAX)
     bonus_pct = min(streak * 5, 50)
     bonus = int(base * bonus_pct / 100)
     total = base + bonus
-    new_balance = user.get("coins", 0) + total
 
+    new_balance = user.get("coins", 0) + total
     update_user(
         user_id,
         {
@@ -88,9 +84,10 @@ async def claim_daily(user_id: int, reply_message: Message):
 
 def init_daily(bot: Client):
 
-    # Make /daily behave just like /mine, /work, etc.
     @bot.on_message(filters.command("daily"))
     async def daily_cmd(_, msg: Message):
+        # DEBUG: this will show in Heroku logs when /daily is caught
+        print(f"[daily] command from {msg.from_user.id if msg.from_user else 'unknown'}")
         if not msg.from_user:
             return
         await claim_daily(msg.from_user.id, msg)
